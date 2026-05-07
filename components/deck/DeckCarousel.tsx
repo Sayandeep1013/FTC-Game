@@ -65,13 +65,7 @@ function DeckCard({
 }) {
   const [hovered, setHovered] = useState(false);
 
-  // On touch devices, tap toggles the hover state (no native hover available)
-  function handleTap() {
-    setHovered(v => !v);
-  }
-
   return (
-    // Plain div owns all layout — Framer Motion never touches width
     <div style={{ width: CARD_W, minWidth: CARD_W, flexShrink: 0 }}>
       <motion.div
         initial={{ opacity: 0, y: 28 }}
@@ -79,10 +73,9 @@ function DeckCard({
         transition={{ delay: index * 0.09, duration: 0.35, ease: "easeOut" }}
         onHoverStart={() => setHovered(true)}
         onHoverEnd={() => setHovered(false)}
-        onTap={handleTap}
-        style={{ position: "relative", width: "100%" }}
+        style={{ width: "100%" }}
       >
-        {/* Card shell — lift + shadow on hover */}
+        {/* Card shell — lifts on hover */}
         <motion.div
           animate={
             hovered
@@ -90,11 +83,11 @@ function DeckCard({
               : { y: 0,  boxShadow: "4px 4px 0px #0a0a0a" }
           }
           transition={{ duration: 0.15, ease: "easeOut" }}
-          className="border-2 border-black bg-white overflow-hidden cursor-pointer select-none"
+          className="border-2 border-black bg-white overflow-hidden cursor-pointer select-none flex flex-col"
           style={{ width: "100%", height: CARD_H }}
         >
-          {/* Cover art — top 60% */}
-          <div className="border-b-2 border-black" style={{ height: Math.round(CARD_H * 0.60) }}>
+          {/* Cover art — fills remaining space */}
+          <div className="border-b-2 border-black flex-1 min-h-0">
             <DeckCoverArt
               slug={deck.slug}
               name={deck.name}
@@ -104,7 +97,7 @@ function DeckCard({
           </div>
 
           {/* Deck name strip */}
-          <div className="bg-black px-4 py-2 border-b-2 border-black">
+          <div className="bg-black px-4 py-2 border-b-2 border-black flex-shrink-0">
             <h3
               className="font-display text-white tracking-wider leading-tight"
               style={{ fontSize: "1.4rem" }}
@@ -114,7 +107,7 @@ function DeckCard({
           </div>
 
           {/* Meta row */}
-          <div className="px-4 py-3 flex items-center justify-between">
+          <div className="px-4 py-2 flex items-center justify-between flex-shrink-0">
             <span className="text-xs font-bold uppercase tracking-wider text-grey-dark">
               52 Cards · 8 Stats
             </span>
@@ -123,13 +116,8 @@ function DeckCard({
             </span>
           </div>
 
-          {/* Hover action buttons */}
-          <motion.div
-            animate={hovered ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-0 left-0 right-0 flex"
-            style={{ borderTop: "2px solid #0a0a0a" }}
-          >
+          {/* Action buttons — always visible */}
+          <div className="flex flex-shrink-0" style={{ borderTop: "2px solid #0a0a0a" }}>
             <button
               onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
               className="deck-btn-light flex-1 py-3 text-[11px] font-bold uppercase tracking-wider"
@@ -143,7 +131,7 @@ function DeckCard({
             >
               Play →
             </button>
-          </motion.div>
+          </div>
         </motion.div>
       </motion.div>
     </div>

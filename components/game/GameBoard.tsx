@@ -8,6 +8,7 @@ import { TableCard } from "./TableCard";
 import { DeckPile } from "./DeckPile";
 import { TimerCircle } from "./TimerCircle";
 import { WinLoseModal } from "./WinLoseModal";
+import { DeckBrowserModal } from "./DeckBrowserModal";
 
 const AI_THINK_MS        = 1800;
 const COMPARISON_SHOW_MS = 7000;
@@ -25,17 +26,22 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   const [displayedResult, setDisplayedResult]   = useState<RoundResult | null>(null);
   const [myPlayedCard, setMyPlayedCard]         = useState<CardInfo | null>(null);
   const [isPicking, setIsPicking]               = useState(false);
+  const [myPickedStatId, setMyPickedStatId]     = useState<string | null>(null);
   const [revealedOppCards, setRevealedOppCards] = useState<Record<string, CardInfo | null>>({});
   const [calledStatId, setCalledStatId]         = useState<string | null>(null);
   const [celebWinnerId, setCelebWinnerId]       = useState<string | null>(null);
   const [turnBanner, setTurnBanner]             = useState<string | null>(null);
   const [timerTurnKey, setTimerTurnKey]         = useState(0);
 
-  const comparingRef     = useRef(false);
-  const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const aiTimeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTurnRef      = useRef(-1);
+  const [deckBrowserOpen, setDeckBrowserOpen]   = useState(false);
+  const [browserTimerStart, setBrowserTimerStart] = useState(TIMER_DURATION);
+
+  const comparingRef      = useRef(false);
+  const resultTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bannerTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiTimeoutRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTurnRef       = useRef(-1);
+  const turnStartedAtRef  = useRef<number>(Date.now());
 
   const roundData   = gameState?.round_data ?? {};
   const isTieActive = !!(roundData.is_tie);
@@ -54,6 +60,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   useEffect(() => {
     if (!gameState || showResult || gameState.phase !== "stat_selection") return;
     setTimerTurnKey(k => k + 1);
+    turnStartedAtRef.current = Date.now();
+    setDeckBrowserOpen(false); // close browser on new turn so timer resets cleanly
     const activeName = playerNameMap[gameState.current_turn_player_id] ?? "?";
     const text = isMyTurn ? "YOUR TURN" : `${activeName}'S TURN`;
     setTurnBanner(text);
@@ -88,6 +96,7 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
       setShowResult(false);
       setIsPicking(false);
       setMyPlayedCard(null);
+      setMyPickedStatId(null);
       setRevealedOppCards({});
       setCalledStatId(null);
       setDisplayedResult(null);
@@ -124,17 +133,26 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   // ── Timer expiry ────────────────────────────────────────────────────────────
   const handleTimerExpire = useCallback(() => {
     if (!isMyTurn || showResult || comparingRef.current || gameState?.phase !== "stat_selection") return;
+    setDeckBrowserOpen(false);
     const available = statDefs.filter(s => !isTieActive || !tiedStatId || s.id === tiedStatId);
     if (!available.length) return;
     const stat = available[Math.floor(Math.random() * available.length)];
     setMyPlayedCard(myCurrentTopCard);
+    setMyPickedStatId(stat.id);
     setIsPicking(true);
     comparingRef.current = true;
     pickStat(stat.id);
   }, [isMyTurn, showResult, gameState?.phase, statDefs, isTieActive, tiedStatId, myCurrentTopCard, pickStat]);
 
+  function openDeckBrowser() {
+    const elapsed = Math.floor((Date.now() - turnStartedAtRef.current) / 1000);
+    setBrowserTimerStart(Math.max(1, TIMER_DURATION - elapsed));
+    setDeckBrowserOpen(true);
+  }
+
   function handlePickStat(statId: string) {
     setMyPlayedCard(myCurrentTopCard);
+    setMyPickedStatId(statId);
     setIsPicking(true);
     comparingRef.current = true;
     setTurnBanner(null);
@@ -162,7 +180,18 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
 
       {/* ── TOPBAR ──────────────────────────────────────────────────────── */}
       <div className="game-topbar">
-        <span className="font-display tracking-widest text-sm">{deckName.toUpperCase()}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-display tracking-widest text-sm">{deckName.toUpperCase()}</span>
+          <button
+            onClick={openDeckBrowser}
+            className="text-[8px] font-bold uppercase tracking-wider border border-black px-2 py-0.5 flex-shrink-0"
+            style={{ transition: "background 80ms, color 80ms" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#0a0a0a"; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = ""; (e.currentTarget as HTMLButtonElement).style.color = ""; }}
+          >
+            View Cards
+          </button>
+        </div>
         <div className="flex items-center gap-3">
           {isTieActive && <span className="text-[8px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">TIE · {potCount} in pot</span>}
           {isEliminated && <span className="text-[8px] font-bold uppercase tracking-wider bg-grey-light border border-black px-1.5 py-0.5">SPECTATING</span>}
@@ -285,14 +314,17 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
           ) : (
             /* Persistent turn indicator + shared timer — everyone sees this */
             <div className="flex items-center gap-5">
-              <TimerCircle
-                durationSeconds={TIMER_DURATION}
-                countDown={isAnyoneTurn}
-                isActiveTurn={isMyTurn}
-                onExpire={handleTimerExpire}
-                turnKey={timerTurnKey}
-                size={48}
-              />
+              {/* Timer hides from center strip when deck browser is open (lives in modal header instead) */}
+              {!deckBrowserOpen && (
+                <TimerCircle
+                  durationSeconds={TIMER_DURATION}
+                  countDown={isAnyoneTurn}
+                  isActiveTurn={isMyTurn}
+                  onExpire={handleTimerExpire}
+                  turnKey={timerTurnKey}
+                  size={48}
+                />
+              )}
               {/* Persistent turn label — visible to ALL players at all times during a turn */}
               <div
                 className={`border-2 border-black px-5 py-2 text-center ${isMyTurn && !showResult ? "bg-black" : "bg-white"}`}
@@ -307,7 +339,11 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                 </p>
                 {isMyTurn && !showResult && !isEliminated && (
                   <p className="text-[7px] text-grey-mid uppercase tracking-widest mt-0.5">
-                    {isTieActive && tiedStatId ? "Tap the highlighted stat" : "Tap a stat on your card ↓"}
+                    {isPicking && myPickedStatId
+                      ? `${statDefs.find(s => s.id === myPickedStatId)?.display_name?.toUpperCase() ?? "STAT"} LOCKED IN`
+                      : isTieActive && tiedStatId
+                      ? "Tap the highlighted stat"
+                      : "Tap a stat on your card ↓"}
                   </p>
                 )}
               </div>
@@ -335,9 +371,9 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                 <TableCard
                   card={myCardToShow}
                   statDefs={statDefs}
-                  isActive={isMyTurn && !showResult && !isEliminated}
-                  onPickStat={isMyTurn && !showResult && !isEliminated ? handlePickStat : undefined}
-                  highlightStatId={showResult ? calledStatId : undefined}
+                  isActive={isMyTurn && !showResult && !isEliminated && !isPicking}
+                  onPickStat={isMyTurn && !showResult && !isEliminated && !isPicking ? handlePickStat : undefined}
+                  highlightStatId={showResult ? calledStatId : (myPickedStatId ?? undefined)}
                   lockedStatId={isTieActive && !showResult ? tiedStatId : null}
                   faceDown={false}
                   label="You"
@@ -363,6 +399,21 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
         </div>
 
       </div>
+
+      {/* ── DECK BROWSER MODAL ──────────────────────────────────────────── */}
+      {deckBrowserOpen && (
+        <DeckBrowserModal
+          allCards={allCards}
+          statDefs={statDefs}
+          onClose={() => setDeckBrowserOpen(false)}
+          isMyTurn={isMyTurn && !showResult && !isEliminated}
+          countDown={isAnyoneTurn}
+          timerInitialRemaining={browserTimerStart}
+          timerDuration={TIMER_DURATION}
+          timerTurnKey={timerTurnKey}
+          onTimerExpire={() => { handleTimerExpire(); setDeckBrowserOpen(false); }}
+        />
+      )}
 
       {/* ── TURN BANNER (flash on turn start) ───────────────────────────── */}
       <AnimatePresence>

@@ -118,7 +118,7 @@ export function TableCard({
               Using plain <div> (not motion.div) for reliable click handling with no animation conflicts.
             */}
             <div
-              className="flex flex-1 min-h-0 overflow-hidden"
+              className={`flex flex-1 min-h-0 overflow-hidden${isActive ? " stats-interactive" : ""}`}
               onMouseMove={e => e.stopPropagation()}
               onMouseLeave={() => { mx.set(0); my.set(0); }}
             >
@@ -186,8 +186,7 @@ function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick }: {
       style={{
         cursor: canClick ? "pointer" : "default",
         padding: "0 5px",
-        // Disable pointer events on locked stats to prevent accidental hover
-        pointerEvents: isLocked ? "none" : "auto",
+        pointerEvents: canClick ? "auto" : "none",
       }}
       onClick={() => { if (canClick && onPick) onPick(stat.id); }}
     >
@@ -198,10 +197,10 @@ function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick }: {
         {stat.display_name}
       </span>
       <span
-        className="font-mono font-bold flex-shrink-0 ml-1"
+        className="font-mono font-bold flex-shrink-0 ml-1 flex items-center gap-0.5"
         style={{ fontSize: "clamp(0.6rem, 1.1vw, 0.72rem)" }}
       >
-        {value ?? "—"}
+        {value ?? "—"}{isHighlighted && <span style={{ fontSize: "0.65em", opacity: 0.85 }}>✓</span>}
       </span>
     </div>
   );

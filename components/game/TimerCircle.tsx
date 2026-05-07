@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 interface TimerCircleProps {
   durationSeconds?: number;
+  /** Start the timer from this value instead of durationSeconds — used when mounting mid-turn */
+  initialRemaining?: number;
   /** Whether to count down at all (show static if false) */
   countDown?: boolean;
   /** Whether this client should fire onExpire (only active player) */
@@ -16,13 +18,14 @@ interface TimerCircleProps {
 
 export function TimerCircle({
   durationSeconds = 15,
+  initialRemaining,
   countDown = true,
   isActiveTurn = false,
   onExpire,
   turnKey = 0,
   size = 52,
 }: TimerCircleProps) {
-  const [remaining, setRemaining] = useState(durationSeconds);
+  const [remaining, setRemaining] = useState(initialRemaining ?? durationSeconds);
   const firedRef       = useRef(false);
   const isActiveRef    = useRef(isActiveTurn);
   const onExpireRef    = useRef(onExpire);
@@ -32,7 +35,7 @@ export function TimerCircle({
 
   useEffect(() => {
     if (!countDown) return;
-    setRemaining(durationSeconds);
+    setRemaining(initialRemaining ?? durationSeconds);
     firedRef.current = false;
 
     const interval = setInterval(() => {
@@ -52,10 +55,10 @@ export function TimerCircle({
     }, 1000);
 
     return () => clearInterval(interval);
-  // turnKey is the ONLY dep — this is intentional.
+  // turnKey + initialRemaining are the reset deps — intentional.
   // isActiveTurn/onExpire changes must NOT reset the timer; they're tracked via refs.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnKey, countDown, durationSeconds]);
+  }, [turnKey, countDown, durationSeconds, initialRemaining]);
 
   const r            = (size - 6) / 2;
   const cx           = size / 2;

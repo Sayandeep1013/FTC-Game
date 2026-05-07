@@ -156,7 +156,10 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
 
   const allPlayers = Object.values(playerInfoMap);
   const myHand = myPlayerId ? (playerInfoMap[myPlayerId] ?? null) : null;
-  const opponents = allPlayers.filter(p => p.player_id !== myPlayerId);
+  // Sort by player_id for a stable, unchanging order as players are eliminated
+  const opponents = allPlayers
+    .filter(p => p.player_id !== myPlayerId)
+    .sort((a, b) => a.player_id.localeCompare(b.player_id));
 
   const isMyTurn = !!myPlayerId && gs.current_turn_player_id === myPlayerId;
   const isEliminated = myHand?.is_eliminated ?? false;

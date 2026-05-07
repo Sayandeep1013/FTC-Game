@@ -112,18 +112,21 @@ body {
     background: var(--black);
     color: var(--white);
     cursor: pointer;
-    transition: background 100ms ease;
+    transition: background 100ms ease, letter-spacing 100ms ease;
     border: none;
     font-family: var(--font-sans), sans-serif;
     font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
   .deck-btn-dark:hover {
-    background: #262626; /* very slightly lighter than pure black — clear feedback without going grey */
+    background: #333;
+    letter-spacing: 0.07em;
   }
 
   .deck-btn-dark:active {
     background: #181818;
+    letter-spacing: 0.02em;
   }
 
   /* Inline card-level light button */
@@ -131,18 +134,21 @@ body {
     background: var(--white);
     color: var(--black);
     cursor: pointer;
-    transition: background 100ms ease;
+    transition: background 100ms ease, letter-spacing 100ms ease;
     border: none;
     font-family: var(--font-sans), sans-serif;
     font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
   .deck-btn-light:hover {
     background: var(--grey-light);
+    letter-spacing: 0.07em;
   }
 
   .deck-btn-light:active {
     background: var(--grey-mid);
+    letter-spacing: 0.02em;
   }
 
   /* Panels / Cards / Modals */
@@ -215,7 +221,8 @@ body {
     border-bottom: 1px solid var(--grey-light);
   }
 
-  .stat-row:hover,
+  /* Hover only fires when parent has .stats-interactive — set only on active player's turn */
+  .stats-interactive .stat-row:hover,
   .stat-row.selected {
     background: var(--black);
     color: var(--white);
@@ -229,7 +236,7 @@ body {
     font-weight: 600;
   }
 
-  .stat-row:hover .stat-label,
+  .stats-interactive .stat-row:hover .stat-label,
   .stat-row.selected .stat-label {
     color: var(--grey-mid);
   }
