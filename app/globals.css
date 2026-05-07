@@ -324,7 +324,6 @@ body {
 .game-layout {
   display: flex;
   flex-direction: column;
-  /* 3.5rem = pt-14 = 56px header offset; without this the board overflows by 56px and scrolls */
   height: calc(100dvh - 3.5rem);
   max-height: calc(100dvh - 3.5rem);
   overflow: hidden;
@@ -338,10 +337,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 12px;
+  padding: 4px 16px;
   border-bottom: 2px solid var(--black);
   background: var(--white);
-  min-height: 36px;
+  min-height: 38px;
 }
 
 /* 3-row body: opp bar / table / my bar */
@@ -472,3 +471,70 @@ body {
 }
 
 .rotate-prompt { display: none; }
+
+/* ── New vertical game body layout ─────────────────────────────────────── */
+
+.game-body-v2 {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 20px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.game-opp-half {
+  flex: 5;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.game-center-strip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 2px solid var(--grey-light);
+  border-bottom: 2px solid var(--grey-light);
+  padding: 8px 20px;
+  min-height: 88px;
+  gap: 20px;
+}
+
+.game-my-half {
+  flex: 5;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.game-player-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.game-stack-piles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.game-player-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 68px;
+  max-width: 110px;
+  flex-shrink: 0;
+}
