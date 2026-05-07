@@ -324,11 +324,13 @@ body {
 .game-layout {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* 3.5rem = pt-14 = 56px header offset; without this the board overflows by 56px and scrolls */
+  height: calc(100dvh - 3.5rem);
+  max-height: calc(100dvh - 3.5rem);
   overflow: hidden;
   background: var(--white);
   user-select: none;
+  position: relative;
 }
 
 .game-topbar {
@@ -396,15 +398,27 @@ body {
 }
 
 .game-table {
-  /* grid-template-columns set inline in GameBoard based on opponent count */
   display: grid;
-  width: 100%;
-  max-width: 900px;
-  height: 100%;              /* fills the available 1fr */
+  width: 100%;              /* fill full width — no max-width cap */
+  height: 100%;
   border: 3px solid var(--black);
   box-shadow: 6px 6px 0 var(--black);
   background: var(--grey-light);
   overflow: hidden;
+}
+
+/* Active player's slot gets a visible inset border */
+.game-table-slot-active {
+  background: rgba(10, 10, 10, 0.035);
+  box-shadow: inset 0 0 0 3px var(--black);
+}
+
+/* My bar glows when it's my turn */
+.game-my-bar-active {
+  border-top: 2px solid var(--black);
+  background: rgba(10, 10, 10, 0.03);
+  margin: 0 -8px;
+  padding: 4px 8px;
 }
 
 .game-table-slot {
