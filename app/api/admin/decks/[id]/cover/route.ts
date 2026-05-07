@@ -1,6 +1,8 @@
-import { requireAdmin, db } from "@/lib/admin/auth";
+import { requireAdmin } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+
+const BUCKET = "game-assets";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin();
@@ -13,22 +15,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!file || !slug) return NextResponse.json({ error: "file and slug required" }, { status: 400 });
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set in Vercel env vars" }, { status: 500 });
+  }
+
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const storagePath = `deck-covers/${slug}.${ext}`;
-
   const supabase = createAdminClient();
 
-  // Ensure the bucket exists (no-op if already present)
-  await supabase.storage.createBucket("game-assets", { public: true });
+  // Create bucket if it doesn't exist — errors only if bucket already exists (which is fine)
+  const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
+    public: true,
+    fileSizeLimit: 5 * 1024 * 1024, // 5 MB
+  });
+  if (bucketErr && !bucketErr.message.includes("already exists") && !bucketErr.message.includes("Duplicate")) {
+    console.error("Bucket create error:", bucketErr.message);
+    return NextResponse.json({ error: `Bucket error: ${bucketErr.message}` }, { status: 500 });
+  }
 
   const arrayBuffer = await file.arrayBuffer();
   const { error: uploadError } = await supabase.storage
-    .from("game-assets")
+    .from(BUCKET)
     .upload(storagePath, arrayBuffer, { contentType: file.type, upsert: true });
 
   if (uploadError) {
-    console.error("Storage upload error:", uploadError);
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    console.error("Upload error:", uploadError.message);
+    return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 });
   }
 
   const { error: dbError } = await supabase
@@ -36,7 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .update({ cover_image_url: storagePath })
     .eq("id", id);
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    console.error("DB error:", dbError.message);
+    return NextResponse.json({ error: dbError.message }, { status: 500 });
+  }
 
   return NextResponse.json({ path: storagePath });
 }
