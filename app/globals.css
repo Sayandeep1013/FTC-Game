@@ -334,72 +334,110 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-bottom: 2px solid var(--black);
   background: var(--white);
   flex-shrink: 0;
-  min-height: 40px;
 }
 
-.game-board-main {
+/* 3-row grid: opponent / center / me */
+.game-board-grid {
   flex: 1;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 1fr auto 1fr;
   overflow: hidden;
   padding: 8px;
   gap: 6px;
 }
 
-/* Opponents row — top */
-.game-opponents {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 4px 0;
-  flex-shrink: 0;
-}
-.game-opponents-1 { justify-content: center; }
-.game-opponents-2 { justify-content: space-around; }
-.game-opponents-3 { justify-content: space-around; }
-
-/* Comparison zone — center */
-.game-comparison-zone {
-  display: flex;
+/* ── Opponent section (top row) ──────────────────────── */
+.game-opp-section {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  gap: 8px;
+  min-height: 0;
 }
-
-/* My area — bottom */
-.game-my-zone {
+.game-opp-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.game-opp-card-area {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 4px;
-  flex-shrink: 0;
+}
+.game-opp-timer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 40px;
 }
 
-/* Mobile portrait: add rotate-device tip but don't block game */
-.rotate-prompt { display: none; }
-
-@media (max-width: 600px) and (orientation: portrait) {
-  .game-topbar { font-size: 0.7rem; padding: 4px 8px; }
-  .game-board-main { padding: 4px; gap: 4px; }
+/* ── Center (comparison table) ───────────────────────── */
+.game-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
 
-/* Mobile landscape: compact everything */
-@media (orientation: landscape) and (max-height: 500px) {
-  .game-topbar { min-height: 32px; padding: 3px 10px; font-size: 0.7rem; }
-  .game-board-main { padding: 4px; gap: 3px; }
-  .game-my-zone { padding-bottom: 2px; }
+/* Empty comparison table placeholder */
+.comparison-table-empty {
+  width: 100%;
+  max-width: 480px;
+  border: 2px solid var(--grey-light);
+  border-radius: 0;
+  display: grid;
+  grid-template-columns: 1fr 2px 1fr;
+  height: 80px;
+}
+.comparison-placeholder-left,
+.comparison-placeholder-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+.comparison-placeholder-divider {
+  background: var(--grey-light);
+}
+
+/* ── My section (bottom row) ─────────────────────────── */
+.game-my-section {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+.game-my-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.game-my-card-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.game-my-timer-area {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 40px;
+}
+
+/* Mobile: compress */
+@media (max-height: 600px) {
+  .game-board-grid { gap: 4px; padding: 4px; }
+  .game-topbar { padding: 3px 8px; font-size: 0.7rem; }
 }
 
 /* Touch devices — always show deck card buttons */
-@media (hover: none) and (pointer: coarse) {
-  .deck-hover-buttons-touch {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
+.rotate-prompt { display: none; }

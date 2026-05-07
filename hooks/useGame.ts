@@ -98,7 +98,9 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "pick_stat", player_id: myPlayerId, stat_id: statId }),
     });
-  }, [roomCode, myPlayerId]);
+    // Immediately re-fetch — don't wait for Realtime (~400ms delay)
+    fetchAndSet();
+  }, [roomCode, myPlayerId, fetchAndSet]);
 
   // ── Derive computed state ─────────────────────────────────────────────────
   if (!raw || !raw.game_state) {

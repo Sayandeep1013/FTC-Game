@@ -9,12 +9,13 @@ interface ComparisonAreaProps {
   result: RoundResult;
   statDefs: StatDefinition[];
   playerNames: Record<string, string>;
-  allCards: Record<string, CardInfo>; // ALL deck cards — not just current top cards
+  allCards: Record<string, CardInfo>;
   potCount: number;
   myPlayerId: string | null;
+  cardsWonCount?: number;
 }
 
-export function ComparisonArea({ result, statDefs, playerNames, allCards, potCount, myPlayerId }: ComparisonAreaProps) {
+export function ComparisonArea({ result, statDefs, playerNames, allCards, potCount, myPlayerId, cardsWonCount }: ComparisonAreaProps) {
   const calledStat = statDefs.find(s => s.id === result.stat_id);
 
   return (
@@ -79,18 +80,24 @@ export function ComparisonArea({ result, statDefs, playerNames, allCards, potCou
           })}
         </div>
 
-        {/* Tie / winner banner */}
+        {/* Result banner */}
         <div className="mt-3 text-center">
           {result.was_tie ? (
             <p className="text-sm font-bold uppercase tracking-wider text-grey-dark">
-              TIE — {potCount} card{potCount !== 1 ? "s" : ""} in pot
+              TIE — {potCount + result.cards.length} card{potCount + result.cards.length !== 1 ? "s" : ""} in pot
             </p>
           ) : result.winner_id ? (
-            <p className="text-sm font-bold uppercase tracking-wider">
-              {result.winner_id === myPlayerId
-                ? "YOU WIN THIS ROUND!"
-                : `${playerNames[result.winner_id] ?? "?"} wins the round`}
-            </p>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider">
+                {result.winner_id === myPlayerId ? "YOU WIN THIS ROUND!" : `${playerNames[result.winner_id] ?? "?"} wins`}
+              </p>
+              {cardsWonCount != null && cardsWonCount > 0 && (
+                <p className="text-[10px] text-grey-dark uppercase tracking-wider mt-0.5">
+                  +{cardsWonCount} card{cardsWonCount !== 1 ? "s" : ""} collected
+                  {potCount > 0 ? ` (incl. ${potCount} from pot)` : ""}
+                </p>
+              )}
+            </div>
           ) : null}
         </div>
       </motion.div>
