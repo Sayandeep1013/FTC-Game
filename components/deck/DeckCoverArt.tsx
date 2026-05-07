@@ -11,7 +11,7 @@ interface DeckCoverArtProps {
 }
 
 // CSS pattern fallbacks — shown when no image is uploaded yet
-const COVERS: Record<string, { bg: string; pattern: string; textColor: string; tag: string }> = {
+const COVERS: Record<string, { bg: string; pattern: string; textColor: string; tag: string; bgSize?: string }> = {
   "ben-10": {
     bg: "#0a0a0a",
     pattern: `repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(245,245,240,0.07) 8px, rgba(245,245,240,0.07) 9px)`,
@@ -23,6 +23,7 @@ const COVERS: Record<string, { bg: string; pattern: string; textColor: string; t
     pattern: `radial-gradient(circle at 50% 50%, #b0b0a8 1px, transparent 1px)`,
     textColor: "#0a0a0a",
     tag: "52 WARRIORS",
+    bgSize: "16px 16px",
   },
   "power-rangers": {
     bg: "#f5f5f0",
@@ -36,6 +37,41 @@ const COVERS: Record<string, { bg: string; pattern: string; textColor: string; t
               repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(245,245,240,0.1) 18px, rgba(245,245,240,0.1) 20px)`,
     textColor: "#f5f5f0",
     tag: "52 HEROES",
+  },
+  // New decks
+  "dc-comics": {
+    bg: "#0a0a0a",
+    pattern: `repeating-linear-gradient(120deg, transparent, transparent 14px, rgba(245,245,240,0.06) 14px, rgba(245,245,240,0.06) 15px),
+              repeating-linear-gradient(60deg, transparent, transparent 14px, rgba(245,245,240,0.06) 14px, rgba(245,245,240,0.06) 15px)`,
+    textColor: "#f5f5f0",
+    tag: "52 HEROES & VILLAINS",
+  },
+  "mcu": {
+    bg: "#2a2a24",
+    pattern: `radial-gradient(circle at 50% 50%, rgba(245,245,240,0.08) 1px, transparent 1px), radial-gradient(circle at 0% 50%, rgba(245,245,240,0.04) 1px, transparent 1px)`,
+    textColor: "#f5f5f0",
+    tag: "52 HEROES",
+    bgSize: "24px 24px",
+  },
+  "naruto": {
+    bg: "#f5f5f0",
+    pattern: `repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(10,10,10,0.06) 10px, rgba(10,10,10,0.06) 12px),
+              repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(10,10,10,0.06) 10px, rgba(10,10,10,0.06) 12px)`,
+    textColor: "#0a0a0a",
+    tag: "52 SHINOBI",
+  },
+  "supercars": {
+    bg: "#0a0a0a",
+    pattern: `repeating-linear-gradient(0deg, transparent, transparent 5px, rgba(245,245,240,0.05) 5px, rgba(245,245,240,0.05) 6px)`,
+    textColor: "#f5f5f0",
+    tag: "52 SUPERCARS",
+  },
+  "harry-potter": {
+    bg: "#e0e0da",
+    pattern: `repeating-linear-gradient(45deg, #b0b0a8 0, #b0b0a8 1px, transparent 0, transparent 50%)`,
+    textColor: "#0a0a0a",
+    tag: "52 CHARACTERS",
+    bgSize: "20px 20px",
   },
 };
 
@@ -69,7 +105,7 @@ export function DeckCoverArt({ slug, name, coverImageUrl, className = "" }: Deck
       style={{
         backgroundColor: cover.bg,
         backgroundImage: cover.pattern,
-        backgroundSize: slug === "dragon-ball" ? "16px 16px" : undefined,
+        backgroundSize: cover.bgSize,
       }}
     >
       <span

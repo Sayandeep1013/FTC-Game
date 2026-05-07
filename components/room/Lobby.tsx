@@ -18,7 +18,7 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
   const router = useRouter();
   const { user } = useAuth();
   const session = useSession();
-  const { room, players, loading, amHost, leaveRoom } = useRoom(roomCode, session?.playerId ?? null);
+  const { room, players, loading, amHost } = useRoom(roomCode, session?.playerId ?? null);
 
   // Join prompt state
   const [joinName, setJoinName] = useState(
@@ -30,6 +30,7 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
   const [addingAi, setAddingAi] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   // Am I already in the room?
   const amInRoom = session ? players.some(p => p.player_id === session.playerId) : false;
@@ -40,6 +41,20 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
       router.push(`/room/${roomCode}/game`);
     }
   }, [room?.status, roomCode, router]);
+
+  // When user logs in mid-session, kick the old ghost guest entry from this room
+  useEffect(() => {
+    if (!session || session.playerType !== "user") return;
+    const oldGuestId = sessionStorage.getItem("ftc_pid");
+    if (!oldGuestId || oldGuestId === session.playerId) return;
+    const ghostInRoom = players.some(p => p.player_id === oldGuestId);
+    if (!ghostInRoom) return;
+    fetch(`/api/rooms/${roomCode}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: oldGuestId }),
+    });
+  }, [session, players, roomCode]);
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading || !session) {
@@ -81,11 +96,11 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
       });
 
       const data = await res.json();
+      setJoining(false);
       if (!res.ok) {
         setJoinError(data.error ?? "Could not join room");
-        setJoining(false);
       }
-      // On success: useRoom Realtime will re-fetch and amInRoom becomes true
+      // On success: Realtime updates amInRoom; joining=false re-enables button as fallback
     }
 
     return (
@@ -167,7 +182,7 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
   }
 
   function handleLeave() {
-    // Navigate immediately — fire and forget
+    setConfirmLeave(false);
     router.push("/");
     fetch(`/api/rooms/${roomCode}`, {
       method: "DELETE",
@@ -179,6 +194,33 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Leave room confirmation */}
+      <AnimatePresence>
+        {confirmLeave && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.6)" }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="panel-brutal w-full max-w-sm mx-4"
+            >
+              <div className="bg-black px-5 py-3 border-b-2 border-black">
+                <p className="font-display text-white text-xl tracking-widest">LEAVE ROOM?</p>
+              </div>
+              <div className="p-5">
+                <p className="text-sm mb-5 leading-relaxed text-grey-dark">
+                  You&apos;ll be removed from the lobby. The room stays open for others.
+                </p>
+                <div className="flex gap-3">
+                  <button className="btn-brutal btn-primary flex-1" onClick={handleLeave}>Yes, leave</button>
+                  <button className="btn-brutal btn-secondary flex-1" onClick={() => setConfirmLeave(false)}>Stay</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-8 pb-16">
 
         {/* Room header */}
@@ -188,7 +230,7 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
               <span className="font-display text-white text-2xl tracking-wider">LOBBY</span>
               <span className="text-grey-mid text-xs ml-3 uppercase tracking-wider">{deck.name}</span>
             </div>
-            <button onClick={handleLeave} className="deck-btn-dark text-xs px-3 py-1.5 font-bold uppercase tracking-wider border border-grey-dark">
+            <button onClick={() => setConfirmLeave(true)} className="deck-btn-dark text-xs px-3 py-1.5 font-bold uppercase tracking-wider border border-grey-dark">
               Leave
             </button>
           </div>

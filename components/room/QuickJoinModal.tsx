@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
@@ -46,6 +46,8 @@ export function QuickJoinModal({ onClose }: QuickJoinModalProps) {
       setLoading(false);
       return;
     }
+    // Close modal FIRST — Header persists across navigations so we must reset state
+    onClose();
     router.push(`/room/${data.room_code}`);
   }
 

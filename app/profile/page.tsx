@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -16,6 +17,10 @@ export default async function ProfilePage() {
   return (
     <main className="min-h-screen bg-white">
       <div className="max-w-lg mx-auto px-4 sm:px-6 pt-10 pb-16">
+
+        <div className="mb-4">
+          <BackButton fallback="/" />
+        </div>
 
         {/* Header */}
         <div className="panel-brutal mb-6">

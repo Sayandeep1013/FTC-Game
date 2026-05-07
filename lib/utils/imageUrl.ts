@@ -22,8 +22,12 @@ export function getDeckCoverUrl(
   coverImageUrl: string | null | undefined,
   slug: string
 ): string | null {
-  // If it's already a full URL (old data or external), use it directly
-  if (coverImageUrl && coverImageUrl.startsWith("http")) return coverImageUrl;
-  // Try the conventional Storage path
-  return `${STORAGE_BASE}/deck-covers/${slug}.jpg`;
+  // Placeholder or empty — try Supabase Storage (will 404 → CSS pattern fallback in UI)
+  if (!coverImageUrl || coverImageUrl === "pending") {
+    return `${STORAGE_BASE}/deck-covers/${slug}.jpg`;
+  }
+  // Full URL (external or Storage)
+  if (coverImageUrl.startsWith("http")) return coverImageUrl;
+  // Relative storage path
+  return `${STORAGE_BASE}/${coverImageUrl}`;
 }

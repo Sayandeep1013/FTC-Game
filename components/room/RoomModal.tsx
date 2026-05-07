@@ -61,6 +61,7 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
       setStep(vsAi ? { id: "ai_count" } : { id: "create" });
       return;
     }
+    onClose();
     router.push(`/room/${data.room_code}`);
   }
 
@@ -88,6 +89,7 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
       setStep({ id: "join" });
       return;
     }
+    onClose();
     router.push(`/room/${data.room_code}`);
   }
 
