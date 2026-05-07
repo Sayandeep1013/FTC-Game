@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Transition } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 type AnimState = "idle" | "receive" | "appear" | "give";
@@ -34,7 +34,7 @@ export function DeckPile({ count, label, width = 52, height = 72 }: DeckPileProp
     anim === "give"    ? { scale: [1, 0.91, 1.03, 1] } :
     { scale: 1, y: 0, opacity: 1 };
 
-  const cardTransition = {
+  const cardTransition: Transition = {
     duration: anim === "appear" ? 0.52 : anim === "receive" ? 0.44 : 0.32,
     ease: "easeOut",
   };
