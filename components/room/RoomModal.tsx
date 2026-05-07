@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
+import { useAuth } from "@/hooks/useAuth";
 import type { Deck } from "@/types";
 
 type Step =
   | { id: "username" }
   | { id: "choose" }
   | { id: "create" }
+  | { id: "ai_count" }
   | { id: "join" }
   | { id: "loading"; message: string };
 
@@ -20,42 +22,51 @@ interface RoomModalProps {
 
 export function RoomModal({ deck, onClose }: RoomModalProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const session = useSession();
+
+  const defaultName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "";
+  const [username, setUsername] = useState(defaultName);
   const [step, setStep] = useState<Step>({ id: "username" });
-  const [username, setUsername] = useState("");
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(2);
+  const [aiCount, setAiCount] = useState<2 | 3 | 4>(2); // total players incl. human
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState("");
 
-  const effectiveUsername = username.trim() || (session?.playerType === "user" ? "Player" : "Guest");
+  const effectiveName = username.trim() || defaultName || "Player";
 
-  async function handleCreateRoom(vsAi = false) {
+  async function createRoom(vsAi: boolean) {
     if (!session) return;
     setError("");
-    setStep({ id: "loading", message: vsAi ? "Setting up AI match..." : "Creating room..." });
+    setStep({ id: "loading", message: vsAi ? "Setting up match..." : "Creating room..." });
 
     const res = await fetch("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         deck_id: deck.id,
-        max_players: vsAi ? 2 : playerCount,
+        max_players: vsAi ? aiCount : playerCount,
         player_id: session.playerId,
         player_type: session.playerType,
-        room_username: effectiveUsername,
+        room_username: effectiveName,
         avatar_url: session.avatarUrl,
         vs_ai: vsAi,
+        ai_count: vsAi ? aiCount - 1 : 0,
       }),
     });
 
     const data = await res.json();
-    if (!res.ok) { setError(data.error ?? "Failed to create room"); setStep({ id: "create" }); return; }
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+      setStep(vsAi ? { id: "ai_count" } : { id: "create" });
+      return;
+    }
     router.push(`/room/${data.room_code}`);
   }
 
-  async function handleJoinRoom() {
-    const code = joinCode.trim().toUpperCase();
-    if (code.length < 6) { setError("Enter the full 6-character room code"); return; }
+  async function joinRoom() {
+    const code = joinCode.trim().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    if (code.length < 6) { setError("Enter the full 6-character code"); return; }
     if (!session) return;
     setError("");
     setStep({ id: "loading", message: "Joining room..." });
@@ -66,13 +77,17 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
       body: JSON.stringify({
         player_id: session.playerId,
         player_type: session.playerType,
-        room_username: effectiveUsername,
+        room_username: effectiveName,
         avatar_url: session.avatarUrl,
       }),
     });
 
     const data = await res.json();
-    if (!res.ok) { setError(data.error ?? "Could not join room"); setStep({ id: "join" }); return; }
+    if (!res.ok) {
+      setError(data.error ?? "Could not join room");
+      setStep({ id: "join" });
+      return;
+    }
     router.push(`/room/${data.room_code}`);
   }
 
@@ -98,15 +113,16 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
 
         <div className="p-5">
           <AnimatePresence mode="wait">
-            {/* ── Step: username ── */}
+
+            {/* ── Username ── */}
             {step.id === "username" && (
-              <motion.div key="username" {...fadeSlide}>
+              <motion.div key="username" {...slide}>
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-2">
-                  Your display name
+                  Your display name for this session
                 </label>
                 <input
                   className="input-brutal mb-1"
-                  placeholder="Enter a name..."
+                  placeholder={defaultName || "Enter a name..."}
                   maxLength={20}
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -114,117 +130,85 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
                   autoFocus
                 />
                 <p className="text-[10px] text-grey-mid mb-5">
-                  This name is only for this session — not unique.
+                  {user ? `Logged in as ${user.email}` : "Not unique — only visible in this session"}
                 </p>
-                <button
-                  className="btn-brutal btn-primary w-full"
-                  onClick={() => setStep({ id: "choose" })}
-                >
+                <button className="btn-brutal btn-primary w-full" onClick={() => setStep({ id: "choose" })}>
                   Continue →
                 </button>
               </motion.div>
             )}
 
-            {/* ── Step: choose mode ── */}
+            {/* ── Choose mode ── */}
             {step.id === "choose" && (
-              <motion.div key="choose" {...fadeSlide}>
-                <p className="text-xs uppercase tracking-widest text-grey-dark font-bold mb-4">
-                  Playing as <span className="text-black">{effectiveUsername}</span>
+              <motion.div key="choose" {...slide}>
+                <p className="text-[11px] uppercase tracking-widest text-grey-dark font-bold mb-4">
+                  Playing as <span className="text-black">{effectiveName}</span>
                 </p>
                 <div className="flex flex-col gap-3">
-                  <ModeButton
-                    label="Create Room"
-                    sub="Host a game, share code with friends"
-                    icon={<RoomIcon />}
-                    onClick={() => setStep({ id: "create" })}
-                  />
-                  <ModeButton
-                    label="Join Room"
-                    sub="Enter a friend's room code"
-                    icon={<JoinIcon />}
-                    onClick={() => setStep({ id: "join" })}
-                  />
-                  <ModeButton
-                    label="Play vs AI"
-                    sub="Quick 1v1 against CPU (random)"
-                    icon={<CpuIcon />}
-                    onClick={() => handleCreateRoom(true)}
-                    dark
-                  />
+                  <ModeBtn icon={<RoomIcon />} label="Create Room" sub="Host and share a code" onClick={() => setStep({ id: "create" })} />
+                  <ModeBtn icon={<JoinIcon />} label="Join Room" sub="Enter a friend's room code" onClick={() => setStep({ id: "join" })} />
+                  <ModeBtn icon={<CpuIcon />} label="Play vs AI" sub="1 human vs CPU opponents" onClick={() => setStep({ id: "ai_count" })} dark />
                 </div>
-                <button
-                  className="mt-4 text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors"
-                  onClick={() => setStep({ id: "username" })}
-                >
+                <button className="mt-4 text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors" onClick={() => setStep({ id: "username" })}>
                   ← Change name
                 </button>
               </motion.div>
             )}
 
-            {/* ── Step: create ── */}
+            {/* ── Create: pick player count ── */}
             {step.id === "create" && (
-              <motion.div key="create" {...fadeSlide}>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-3">
-                  Number of players
-                </p>
-                <div className="flex gap-3 mb-5">
-                  {([2, 3, 4] as const).map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setPlayerCount(n)}
-                      className={`flex-1 py-4 border-2 border-black font-display text-3xl transition-all ${
-                        playerCount === n
-                          ? "bg-black text-white"
-                          : "bg-white text-black hover:bg-grey-light"
-                      }`}
-                      style={{ boxShadow: playerCount === n ? "3px 3px 0 #4a4a44" : "3px 3px 0 #0a0a0a" }}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                {error && <p className="text-xs font-bold text-black mb-3 bg-grey-light border border-black px-3 py-2">{error}</p>}
-                <button className="btn-brutal btn-primary w-full mb-3" onClick={() => handleCreateRoom(false)}>
+              <motion.div key="create" {...slide}>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-3">Total players (including you)</p>
+                <CountPicker value={playerCount} onChange={v => setPlayerCount(v as 2|3|4)} />
+                {error && <ErrorBox msg={error} />}
+                <button className="btn-brutal btn-primary w-full mt-4 mb-3" onClick={() => createRoom(false)}>
                   Create Room
                 </button>
-                <button className="text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors" onClick={() => setStep({ id: "choose" })}>
-                  ← Back
-                </button>
+                <BackBtn onClick={() => setStep({ id: "choose" })} />
               </motion.div>
             )}
 
-            {/* ── Step: join ── */}
+            {/* ── AI: pick total player count ── */}
+            {step.id === "ai_count" && (
+              <motion.div key="ai_count" {...slide}>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-1">Total players</p>
+                <p className="text-[10px] text-grey-mid mb-3">You + {aiCount - 1} CPU opponent{aiCount - 1 > 1 ? "s" : ""}</p>
+                <CountPicker value={aiCount} onChange={v => setAiCount(v as 2|3|4)} />
+                {error && <ErrorBox msg={error} />}
+                <button className="btn-brutal btn-primary w-full mt-4 mb-3" onClick={() => createRoom(true)}>
+                  Start vs AI →
+                </button>
+                <BackBtn onClick={() => setStep({ id: "choose" })} />
+              </motion.div>
+            )}
+
+            {/* ── Join: enter code ── */}
             {step.id === "join" && (
-              <motion.div key="join" {...fadeSlide}>
-                <label className="block text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-2">
-                  Room code
-                </label>
+              <motion.div key="join" {...slide}>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-2">Room code</label>
                 <input
                   className="input-brutal font-mono text-2xl text-center tracking-[0.4em] uppercase mb-1"
-                  placeholder="ABC-123"
-                  maxLength={7}
+                  placeholder="ABC123"
+                  maxLength={6}
                   value={joinCode}
                   onChange={e => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))}
-                  onKeyDown={e => e.key === "Enter" && handleJoinRoom()}
+                  onKeyDown={e => e.key === "Enter" && joinRoom()}
                   autoFocus
                 />
-                {error && <p className="text-xs font-bold text-black mb-3 bg-grey-light border border-black px-3 py-2 mt-2">{error}</p>}
-                <button className="btn-brutal btn-primary w-full mt-4 mb-3" onClick={handleJoinRoom}>
-                  Join Room
-                </button>
-                <button className="text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors" onClick={() => setStep({ id: "choose" })}>
-                  ← Back
-                </button>
+                {error && <ErrorBox msg={error} />}
+                <button className="btn-brutal btn-primary w-full mt-4 mb-3" onClick={joinRoom}>Join Room</button>
+                <BackBtn onClick={() => setStep({ id: "choose" })} />
               </motion.div>
             )}
 
-            {/* ── Step: loading ── */}
+            {/* ── Loading ── */}
             {step.id === "loading" && (
-              <motion.div key="loading" {...fadeSlide} className="py-8 text-center">
+              <motion.div key="loading" {...slide} className="py-10 text-center">
                 <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                 <p className="text-sm font-bold uppercase tracking-wider">{step.message}</p>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </motion.div>
@@ -232,20 +216,39 @@ export function RoomModal({ deck, onClose }: RoomModalProps) {
   );
 }
 
-const fadeSlide = {
-  initial: { opacity: 0, x: 12 },
+// ── Shared sub-components ─────────────────────────────────────────────────────
+
+const slide = {
+  initial: { opacity: 0, x: 10 },
   animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -12 },
-  transition: { duration: 0.15 },
+  exit: { opacity: 0, x: -10 },
+  transition: { duration: 0.14 },
 };
 
-function ModeButton({ label, sub, icon, onClick, dark }: { label: string; sub: string; icon: React.ReactNode; onClick: () => void; dark?: boolean }) {
+function CountPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex gap-3">
+      {([2, 3, 4] as const).map(n => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className={`flex-1 py-4 border-2 border-black font-display text-3xl transition-all ${
+            value === n ? "bg-black text-white" : "bg-white text-black hover:bg-grey-light"
+          }`}
+          style={{ boxShadow: value === n ? "3px 3px 0 #4a4a44" : "3px 3px 0 #0a0a0a" }}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ModeBtn({ icon, label, sub, onClick, dark }: { icon: React.ReactNode; label: string; sub: string; onClick: () => void; dark?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-3 border-2 border-black text-left transition-all ${
-        dark ? "deck-btn-dark" : "deck-btn-light"
-      }`}
+      className={`w-full flex items-center gap-4 px-4 py-3 border-2 border-black text-left ${dark ? "deck-btn-dark" : "deck-btn-light"}`}
       style={{ boxShadow: "3px 3px 0 #0a0a0a" }}
     >
       <span className="flex-shrink-0 opacity-70">{icon}</span>
@@ -253,6 +256,18 @@ function ModeButton({ label, sub, icon, onClick, dark }: { label: string; sub: s
         <span className="block font-bold text-sm uppercase tracking-wider">{label}</span>
         <span className="block text-[10px] uppercase tracking-wider opacity-60 mt-0.5">{sub}</span>
       </span>
+    </button>
+  );
+}
+
+function ErrorBox({ msg }: { msg: string }) {
+  return <p className="text-xs font-bold text-black mt-3 bg-grey-light border border-black px-3 py-2">{msg}</p>;
+}
+
+function BackBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors" onClick={onClick}>
+      ← Back
     </button>
   );
 }

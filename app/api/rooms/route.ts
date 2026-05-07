@@ -3,7 +3,7 @@ import { generateRoomCode } from "@/lib/utils/roomCode";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { deck_id, max_players, player_id, player_type, room_username, avatar_url, vs_ai } =
+  const { deck_id, max_players, player_id, player_type, room_username, avatar_url, vs_ai, ai_count = 1 } =
     await req.json();
 
   if (!deck_id || !player_id || !room_username) {
@@ -21,10 +21,12 @@ export async function POST(req: NextRequest) {
   }
   if (!room_code) return NextResponse.json({ error: "Could not generate room code" }, { status: 500 });
 
-  // Create room
+  // max_players: for AI games use ai_count+1 (human + AIs), else use the provided value
+  const effectiveMaxPlayers = vs_ai ? ai_count + 1 : max_players;
+
   const { data: room, error: roomErr } = await supabase
     .from("rooms")
-    .insert({ room_code, deck_id, host_player_id: player_id, max_players: vs_ai ? 2 : max_players })
+    .insert({ room_code, deck_id, host_player_id: player_id, max_players: effectiveMaxPlayers })
     .select("id, room_code")
     .single();
 
@@ -42,17 +44,18 @@ export async function POST(req: NextRequest) {
   });
   if (hostErr) return NextResponse.json({ error: hostErr.message }, { status: 500 });
 
-  // Add AI player if vs AI
-  if (vs_ai) {
-    await supabase.from("room_players").insert({
+  // Add AI players (supports 1-3 AIs)
+  if (vs_ai && ai_count > 0) {
+    const aiRows = Array.from({ length: ai_count }, (_, i) => ({
       room_id: room.id,
-      player_id: `ai-${room.id}`,
+      player_id: `ai-${room.id}-${i + 1}`,
       player_type: "ai",
-      room_username: "CPU",
+      room_username: ai_count === 1 ? "CPU" : `CPU ${i + 1}`,
       avatar_url: "/avatars/avatar-01.png",
       is_host: false,
       is_ai: true,
-    });
+    }));
+    await supabase.from("room_players").insert(aiRows);
   }
 
   return NextResponse.json({ room_code: room.room_code, room_id: room.id });

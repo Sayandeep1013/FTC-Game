@@ -2,9 +2,10 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRoom } from "@/hooks/useRoom";
 import { useSession } from "@/hooks/useSession";
+import { useAuth } from "@/hooks/useAuth";
 import type { Deck } from "@/types";
 import Image from "next/image";
 
@@ -15,11 +16,32 @@ interface LobbyProps {
 
 export function Lobby({ roomCode, deck }: LobbyProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const session = useSession();
   const { room, players, loading, amHost, leaveRoom } = useRoom(roomCode, session?.playerId ?? null);
+
+  // Join prompt state
+  const [joinName, setJoinName] = useState(
+    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? ""
+  );
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState("");
+
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [addingAi, setAddingAi] = useState(false);
 
+  // Am I already in the room?
+  const amInRoom = session ? players.some(p => p.player_id === session.playerId) : false;
+
+  // If room status changed to "playing", navigate to game
+  useEffect(() => {
+    if (room?.status === "playing") {
+      router.push(`/room/${roomCode}/game`);
+    }
+  }, [room?.status, roomCode, router]);
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading || !session) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -39,34 +61,121 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
     );
   }
 
-  const humanPlayers = players.filter(p => !p.is_ai);
-  const aiPlayers = players.filter(p => p.is_ai);
+  // ── Join prompt (visitor not yet in room) ─────────────────────────────────
+  if (!amInRoom) {
+    async function handleJoin() {
+      const name = joinName.trim() || (user ? "Player" : "Guest");
+      if (!session) return;
+      setJoining(true);
+      setJoinError("");
+
+      const res = await fetch(`/api/rooms/${roomCode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player_id: session.playerId,
+          player_type: session.playerType,
+          room_username: name,
+          avatar_url: session.avatarUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setJoinError(data.error ?? "Could not join room");
+        setJoining(false);
+      }
+      // On success: useRoom Realtime will re-fetch and amInRoom becomes true
+    }
+
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="panel-brutal w-full max-w-sm"
+        >
+          <div className="bg-black px-5 py-3 border-b-2 border-black">
+            <p className="font-display text-white text-xl tracking-widest">JOIN ROOM</p>
+            <p className="text-grey-mid text-xs uppercase tracking-wider">{deck.name} · {roomCode.slice(0,3)}-{roomCode.slice(3)}</p>
+          </div>
+
+          <div className="p-5">
+            <label className="block text-[11px] font-bold uppercase tracking-widest text-grey-dark mb-2">
+              Your display name
+            </label>
+            <input
+              className="input-brutal mb-1"
+              placeholder={user ? (user.user_metadata?.full_name as string) || "Player" : "Guest name..."}
+              value={joinName}
+              onChange={e => setJoinName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleJoin()}
+              maxLength={20}
+              autoFocus
+            />
+            {user && (
+              <p className="text-[10px] text-grey-mid mb-4">Logged in as {user.email}</p>
+            )}
+            {joinError && (
+              <p className="text-xs font-bold bg-grey-light border border-black px-3 py-2 mt-2 mb-3">{joinError}</p>
+            )}
+            <button
+              className="btn-brutal btn-primary w-full mt-4"
+              onClick={handleJoin}
+              disabled={joining}
+            >
+              {joining ? "Joining..." : "Join Room →"}
+            </button>
+            <button
+              className="mt-3 text-[10px] uppercase tracking-wider text-grey-mid hover:text-black font-bold transition-colors w-full text-center"
+              onClick={() => router.push("/")}
+            >
+              ← Back to home
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Normal Lobby ─────────────────────────────────────────────────────────────
+
   const isFull = players.length >= room.max_players;
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/room/${roomCode}` : "";
+  const displayCode = `${roomCode.slice(0, 3)}-${roomCode.slice(3)}`;
 
   async function copyLink() {
-    await navigator.clipboard.writeText(shareUrl);
+    await navigator.clipboard.writeText(`${window.location.origin}/room/${roomCode}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   async function startGame() {
     setStarting(true);
-    const res = await fetch(`/api/game/${roomCode}/start`, {
+    await fetch(`/api/game/${roomCode}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player_id: session!.playerId }),
+      body: JSON.stringify({ player_id: session?.playerId }),
     });
-    if (!res.ok) { setStarting(false); }
-    // Room status update triggers a re-render via Realtime and the page will switch to game view
+    // Realtime will update room.status → "playing" → triggers router.push above
   }
 
-  async function handleLeave() {
-    if (session) await leaveRoom(session.playerId);
+  async function addAiPlayer() {
+    if (isFull || !amHost) return;
+    setAddingAi(true);
+    await fetch(`/api/rooms/${roomCode}/ai-player`, { method: "POST" });
+    setAddingAi(false);
+  }
+
+  function handleLeave() {
+    // Navigate immediately — fire and forget
     router.push("/");
+    fetch(`/api/rooms/${roomCode}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: session?.playerId }),
+      keepalive: true,
+    });
   }
-
-  const displayCode = `${roomCode.slice(0, 3)}-${roomCode.slice(3)}`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -85,33 +194,27 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
           </div>
 
           <div className="px-5 py-4">
-            {/* Room code */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
               <div>
                 <p className="text-[9px] uppercase tracking-widest text-grey-dark font-bold mb-1">Room Code</p>
                 <span className="room-code text-2xl">{displayCode}</span>
               </div>
-              <button
-                onClick={copyLink}
-                className="btn-brutal btn-secondary text-[10px] px-3 py-2 ml-2"
-              >
+              <button onClick={copyLink} className="btn-brutal btn-secondary text-[10px] px-3 py-2">
                 {copied ? "Copied!" : "Copy Link"}
               </button>
             </div>
 
-            {/* Status */}
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isFull ? "bg-black" : "bg-grey-mid"}`} />
               <span className="text-xs font-bold uppercase tracking-wider text-grey-dark">
-                {players.length} / {room.max_players} players
-                {isFull ? " — Room full" : " — Waiting for players"}
+                {players.length} / {room.max_players} · {isFull ? "Room full" : "Waiting for players"}
               </span>
             </div>
           </div>
         </div>
 
         {/* Player list */}
-        <div className="panel-brutal mb-6">
+        <div className="panel-brutal mb-4">
           <div className="px-4 py-2 border-b-2 border-black bg-grey-light">
             <p className="text-[10px] font-bold uppercase tracking-widest text-grey-dark">Players</p>
           </div>
@@ -120,32 +223,29 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
               {players.map((p, i) => (
                 <motion.div
                   key={p.player_id}
-                  initial={{ opacity: 0, x: -12 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 12 }}
-                  transition={{ delay: i * 0.05 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ delay: i * 0.04 }}
                   className="flex items-center gap-3 px-4 py-3"
                 >
-                  {/* Avatar */}
-                  <div className="w-9 h-9 border-2 border-black overflow-hidden flex-shrink-0 bg-grey-light">
-                    {p.avatar_url && (
-                      <Image src={p.avatar_url} alt={p.room_username} width={36} height={36} className="object-cover" />
+                  <div className="w-9 h-9 border-2 border-black overflow-hidden flex-shrink-0 bg-grey-light flex items-center justify-center">
+                    {p.is_ai ? (
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#4a4a44" strokeWidth="1.8" strokeLinecap="square">
+                        <rect x="5" y="5" width="10" height="10" /><path d="M8 5V2m4 3V2M8 18v-3m4 3v-3M5 8H2m3 4H2m16-4h-3m3 4h-3" />
+                      </svg>
+                    ) : p.avatar_url ? (
+                      <Image src={p.avatar_url} alt={p.room_username} width={36} height={36} className="object-cover w-full h-full" />
+                    ) : (
+                      <span className="font-display text-lg">{p.room_username[0]}</span>
                     )}
                   </div>
-
-                  {/* Name + badges */}
                   <div className="flex-1 min-w-0">
                     <span className="font-bold text-sm truncate block">{p.room_username}</span>
                     <div className="flex gap-1.5 mt-0.5">
-                      {p.is_host && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider bg-black text-white px-1.5 py-0.5">HOST</span>
-                      )}
-                      {p.is_ai && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider bg-grey-light border border-black text-black px-1.5 py-0.5">CPU</span>
-                      )}
-                      {p.player_id === session.playerId && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-grey-dark px-1 py-0.5">You</span>
-                      )}
+                      {p.is_host && <Badge label="HOST" dark />}
+                      {p.is_ai && <Badge label="CPU" />}
+                      {p.player_id === session.playerId && <Badge label="YOU" muted />}
                     </div>
                   </div>
                 </motion.div>
@@ -162,23 +262,32 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
           </div>
         </div>
 
-        {/* Start button (host only) */}
+        {/* Add AI button (host only) */}
+        {amHost && !isFull && (
+          <button
+            onClick={addAiPlayer}
+            disabled={addingAi}
+            className="btn-brutal btn-secondary w-full mb-4 text-xs"
+          >
+            {addingAi ? "Adding..." : "+ Add CPU Player"}
+          </button>
+        )}
+        {amHost && isFull && (
+          <button disabled className="btn-brutal btn-secondary w-full mb-4 text-xs opacity-30 cursor-not-allowed">
+            + Add CPU Player (room full)
+          </button>
+        )}
+
+        {/* Start button (host only, room full) */}
         {amHost && (
-          <div>
-            <button
-              className="btn-brutal btn-primary w-full text-base py-4"
-              disabled={!isFull || starting}
-              onClick={startGame}
-              style={{ opacity: isFull ? 1 : 0.4, cursor: isFull ? "pointer" : "not-allowed" }}
-            >
-              {starting ? "Starting..." : isFull ? "Start Game →" : `Waiting for ${room.max_players - players.length} more player(s)`}
-            </button>
-            {!isFull && (
-              <p className="text-[10px] text-grey-mid text-center mt-2 uppercase tracking-wider">
-                Share the room code or link above
-              </p>
-            )}
-          </div>
+          <button
+            className="btn-brutal btn-primary w-full text-base py-4"
+            disabled={!isFull || starting}
+            onClick={startGame}
+            style={{ opacity: isFull ? 1 : 0.4, cursor: isFull ? "pointer" : "not-allowed" }}
+          >
+            {starting ? "Starting..." : isFull ? "Start Game →" : `Need ${room.max_players - players.length} more player(s)`}
+          </button>
         )}
 
         {!amHost && (
@@ -189,5 +298,17 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
         )}
       </div>
     </div>
+  );
+}
+
+function Badge({ label, dark, muted }: { label: string; dark?: boolean; muted?: boolean }) {
+  return (
+    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 ${
+      dark ? "bg-black text-white" :
+      muted ? "text-grey-dark" :
+      "bg-grey-light border border-black text-black"
+    }`}>
+      {label}
+    </span>
   );
 }

@@ -72,6 +72,13 @@ export function ProfileButton() {
             <p className="text-xs font-bold uppercase tracking-wider text-grey-dark">Signed in as</p>
             <p className="text-sm font-bold truncate">{displayName}</p>
           </div>
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-2 text-sm font-bold uppercase tracking-wider hover:bg-grey-light transition-colors border-b border-grey-light"
+          >
+            My Profile
+          </Link>
           <form action={signOut}>
             <button
               type="submit"
