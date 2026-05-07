@@ -1,10 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { CardInfo, PlayerHandInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface CardDisplayProps {
   hand: PlayerHandInfo;
@@ -19,6 +19,27 @@ interface CardDisplayProps {
 export function CardDisplay({ hand, statDefs, isActive, selectedStatId, onPickStat, tiedStatId, compact = false }: CardDisplayProps) {
   const card = hand.top_card;
   const [hoveredStat, setHoveredStat] = useState<string | null>(null);
+
+  // Balatro-style 3D tilt on mouse move (active card only)
+  const cardRef = useRef<HTMLDivElement>(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const rotateX = useSpring(useTransform(mouseY, [-1, 1], [10, -10]), { stiffness: 300, damping: 30 });
+  const rotateY = useSpring(useTransform(mouseX, [-1, 1], [-10, 10]), { stiffness: 300, damping: 30 });
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isActive || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width * 2 - 1;
+    const y = (e.clientY - rect.top) / rect.height * 2 - 1;
+    mouseX.set(x);
+    mouseY.set(y);
+  }
+
+  function handleMouseLeave() {
+    mouseX.set(0);
+    mouseY.set(0);
+  }
 
   if (!card) {
     return (
@@ -65,10 +86,19 @@ export function CardDisplay({ hand, statDefs, isActive, selectedStatId, onPickSt
 
   return (
     <motion.div
+      ref={cardRef}
       className={`border-2 border-black bg-white overflow-hidden select-none ${isActive ? "card-active" : ""}`}
-      style={{ width: cardW, height: cardH, boxShadow: isActive ? "6px 6px 0px #0a0a0a" : "4px 4px 0px #0a0a0a" }}
-      animate={isActive ? { scale: [1, 1.02, 1] } : {}}
-      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+      style={{
+        width: cardW, height: cardH,
+        boxShadow: isActive ? "6px 6px 0px #0a0a0a" : "4px 4px 0px #0a0a0a",
+        perspective: 800,
+        rotateX: isActive ? rotateX : 0,
+        rotateY: isActive ? rotateY : 0,
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      animate={isActive ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+      transition={{ repeat: isActive ? Infinity : 0, duration: 2.5, ease: "easeInOut" }}
     >
       {/* Image */}
       <div className="border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden" style={{ height: imgH }}>

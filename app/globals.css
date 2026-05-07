@@ -319,33 +319,87 @@ body {
   transition: width 0.3s ease;
 }
 
-/* ── Mobile landscape enforcement (in-game) ─────────────────────────────────── */
-@media (max-width: 768px) and (orientation: portrait) {
-  .game-board-wrapper {
-    display: none;
-  }
-  .rotate-prompt {
-    display: flex;
-  }
-}
+/* ── Game board layout ───────────────────────────────────────────────────────── */
 
-@media (min-width: 769px), (orientation: landscape) {
-  .rotate-prompt {
-    display: none;
-  }
-}
-
-.rotate-prompt {
-  position: fixed;
-  inset: 0;
-  background: var(--black);
-  color: var(--white);
+.game-layout {
+  display: flex;
   flex-direction: column;
+  height: 100dvh;
+  background: var(--white);
+  overflow: hidden;
+  user-select: none;
+}
+
+.game-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 2px solid var(--black);
+  background: var(--white);
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+.game-board-main {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  padding: 8px;
+  gap: 6px;
+}
+
+/* Opponents row — top */
+.game-opponents {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+.game-opponents-1 { justify-content: center; }
+.game-opponents-2 { justify-content: space-around; }
+.game-opponents-3 { justify-content: space-around; }
+
+/* Comparison zone — center */
+.game-comparison-zone {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  z-index: 200;
-  font-family: var(--font-sans), sans-serif;
-  text-align: center;
-  padding: 24px;
+  overflow: hidden;
+}
+
+/* My area — bottom */
+.game-my-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+  flex-shrink: 0;
+}
+
+/* Mobile portrait: add rotate-device tip but don't block game */
+.rotate-prompt { display: none; }
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .game-topbar { font-size: 0.7rem; padding: 4px 8px; }
+  .game-board-main { padding: 4px; gap: 4px; }
+}
+
+/* Mobile landscape: compact everything */
+@media (orientation: landscape) and (max-height: 500px) {
+  .game-topbar { min-height: 32px; padding: 3px 10px; font-size: 0.7rem; }
+  .game-board-main { padding: 4px; gap: 3px; }
+  .game-my-zone { padding-bottom: 2px; }
+}
+
+/* Touch devices — always show deck card buttons */
+@media (hover: none) and (pointer: coarse) {
+  .deck-hover-buttons-touch {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

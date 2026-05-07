@@ -1,20 +1,20 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import type { RoundResult } from "@/hooks/useGame";
+import type { CardInfo, RoundResult } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
 
 interface ComparisonAreaProps {
   result: RoundResult;
   statDefs: StatDefinition[];
-  playerNames: Record<string, string>;  // player_id → room_username
-  cardData: Record<string, { name: string; image_url: string | null; image_storage_path: string | null }>; // card_id → card
+  playerNames: Record<string, string>;
+  allCards: Record<string, CardInfo>; // ALL deck cards — not just current top cards
   potCount: number;
   myPlayerId: string | null;
 }
 
-export function ComparisonArea({ result, statDefs, playerNames, cardData, potCount, myPlayerId }: ComparisonAreaProps) {
+export function ComparisonArea({ result, statDefs, playerNames, allCards, potCount, myPlayerId }: ComparisonAreaProps) {
   const calledStat = statDefs.find(s => s.id === result.stat_id);
 
   return (
@@ -36,7 +36,7 @@ export function ComparisonArea({ result, statDefs, playerNames, cardData, potCou
         {/* Cards row */}
         <div className="flex gap-3 flex-wrap justify-center">
           {result.cards.map(c => {
-            const card = cardData[c.card_id];
+            const card = allCards[c.card_id];
             const imageUrl = card ? getCardImageUrl(card.image_url, card.image_storage_path) : null;
             const isWinner = c.is_winner;
             const isMe = c.player_id === myPlayerId;
@@ -44,11 +44,15 @@ export function ComparisonArea({ result, statDefs, playerNames, cardData, potCou
             return (
               <motion.div
                 key={c.player_id}
-                initial={{ rotateY: 90, opacity: 0 }}
-                animate={{ rotateY: 0, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className={`border-2 border-black bg-white overflow-hidden flex-shrink-0 ${isWinner ? "ring-4 ring-black" : ""}`}
-                style={{ width: 130, boxShadow: isWinner ? "6px 6px 0 #0a0a0a" : "3px 3px 0 #0a0a0a" }}
+                initial={{ rotateY: -90, opacity: 0, scale: 0.85 }}
+                animate={{ rotateY: 0, opacity: 1, scale: isWinner ? 1.05 : 1 }}
+                transition={{ duration: 0.45, delay: result.cards.indexOf(c) * 0.12, ease: [0.34, 1.56, 0.64, 1] }}
+                className={`border-2 border-black bg-white overflow-hidden flex-shrink-0`}
+                style={{
+                  width: 130,
+                  boxShadow: isWinner ? "8px 8px 0 #0a0a0a" : "3px 3px 0 #0a0a0a",
+                  perspective: 600,
+                }}
               >
                 {/* Mini image */}
                 <div className="bg-grey-light border-b-2 border-black flex items-center justify-center overflow-hidden" style={{ height: 70 }}>

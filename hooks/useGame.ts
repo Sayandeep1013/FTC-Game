@@ -55,6 +55,7 @@ export interface UseGameReturn {
   myHand: PlayerHandInfo | null;
   opponents: PlayerHandInfo[];
   statDefs: StatDefinition[];
+  allCards: Record<string, CardInfo>; // ALL cards in the deck (for comparison display)
   isMyTurn: boolean;
   isEliminated: boolean;
   gameOver: boolean;
@@ -101,7 +102,7 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
 
   // ── Derive computed state ─────────────────────────────────────────────────
   if (!raw || !raw.game_state) {
-    return { loading, gameState: null, myHand: null, opponents: [], statDefs: [], isMyTurn: false, isEliminated: false, gameOver: false, gameWinnerId: null, pickStat };
+    return { loading, gameState: null, myHand: null, opponents: [], statDefs: [], allCards: {}, isMyTurn: false, isEliminated: false, gameOver: false, gameWinnerId: null, pickStat };
   }
 
   const gs = raw.game_state as unknown as GameState;
@@ -156,6 +157,7 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
     myHand,
     opponents,
     statDefs: raw.stat_defs as StatDefinition[],
+    allCards: cardMap,
     isMyTurn,
     isEliminated,
     gameOver,

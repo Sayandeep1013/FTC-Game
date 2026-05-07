@@ -65,6 +65,11 @@ function DeckCard({
 }) {
   const [hovered, setHovered] = useState(false);
 
+  // On touch devices, tap toggles the hover state (no native hover available)
+  function handleTap() {
+    setHovered(v => !v);
+  }
+
   return (
     // Plain div owns all layout — Framer Motion never touches width
     <div style={{ width: CARD_W, minWidth: CARD_W, flexShrink: 0 }}>
@@ -74,6 +79,7 @@ function DeckCard({
         transition={{ delay: index * 0.09, duration: 0.35, ease: "easeOut" }}
         onHoverStart={() => setHovered(true)}
         onHoverEnd={() => setHovered(false)}
+        onTap={handleTap}
         style={{ position: "relative", width: "100%" }}
       >
         {/* Card shell — lift + shadow on hover */}
