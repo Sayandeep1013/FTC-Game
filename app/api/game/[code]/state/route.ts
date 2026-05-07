@@ -38,10 +38,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ code: 
     .eq("deck_id", room.deck_id);
 
   const cardIds = (hands ?? []).map((h: { card_id: string }) => h.card_id);
+
+  // Pot cards are deleted from player_hands during a tie (tracked only in round_data.pot_card_ids).
+  // Include them so comparison cards still show their stat values during result display.
+  const potCardIds = ((gs?.round_data as Record<string, unknown> | null)?.pot_card_ids as string[] | undefined) ?? [];
+  const allCardIds = [...new Set([...cardIds, ...potCardIds])];
+
   const { data: cardStats } = await db
     .from("card_stats")
     .select("card_id, stat_definition_id, value")
-    .in("card_id", cardIds.length > 0 ? cardIds : ["none"]);
+    .in("card_id", allCardIds.length > 0 ? allCardIds : ["none"]);
 
   return NextResponse.json({
     room,
