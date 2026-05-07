@@ -375,6 +375,7 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                   onPickStat={isMyTurn && !showResult && !isEliminated && !isPicking ? handlePickStat : undefined}
                   highlightStatId={showResult ? calledStatId : (myPickedStatId ?? undefined)}
                   lockedStatId={isTieActive && !showResult ? tiedStatId : null}
+                  showCheckmark={isPicking && !showResult}
                   faceDown={false}
                   label="You"
                   enterFrom="none"

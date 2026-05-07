@@ -344,10 +344,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 16px;
+  padding: 7px 16px;
   border-bottom: 2px solid var(--black);
   background: var(--white);
-  min-height: 38px;
+  min-height: 42px;
 }
 
 /* 3-row body: opp bar / table / my bar */

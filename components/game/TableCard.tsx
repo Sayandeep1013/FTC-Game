@@ -16,6 +16,8 @@ interface TableCardProps {
   faceDown?: boolean;
   label?: string;
   enterFrom?: "top" | "bottom" | "none";
+  /** Show ✓ on the highlighted stat — only for the local player's card while waiting for result */
+  showCheckmark?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function TableCard({
   card, statDefs, isActive, onPickStat,
   highlightStatId, lockedStatId,
   faceDown = false, label, enterFrom = "none",
+  showCheckmark = false,
 }: TableCardProps) {
   const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
 
@@ -132,6 +135,7 @@ export function TableCard({
                     isLocked={!!(lockedStatId && lockedStatId !== stat.id)}
                     canClick={!!isActive && !!onPickStat && highlightStatId !== stat.id && !(lockedStatId && lockedStatId !== stat.id)}
                     onPick={onPickStat}
+                    showCheckmark={showCheckmark}
                   />
                 ))}
               </div>
@@ -145,6 +149,7 @@ export function TableCard({
                     isLocked={!!(lockedStatId && lockedStatId !== stat.id)}
                     canClick={!!isActive && !!onPickStat && highlightStatId !== stat.id && !(lockedStatId && lockedStatId !== stat.id)}
                     onPick={onPickStat}
+                    showCheckmark={showCheckmark}
                   />
                 ))}
               </div>
@@ -172,13 +177,14 @@ export function TableCard({
 // This prevents any animation conflict with the card tilt.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick }: {
+function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick, showCheckmark }: {
   stat: StatDefinition;
   value: number | undefined;
   isHighlighted: boolean;
   isLocked: boolean;
   canClick: boolean;
   onPick?: (id: string) => void;
+  showCheckmark?: boolean;
 }) {
   return (
     <div
@@ -200,7 +206,7 @@ function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick }: {
         className="font-mono font-bold flex-shrink-0 ml-1 flex items-center gap-0.5"
         style={{ fontSize: "clamp(0.6rem, 1.1vw, 0.72rem)" }}
       >
-        {value ?? "—"}{isHighlighted && <span style={{ fontSize: "0.65em", opacity: 0.85 }}>✓</span>}
+        {value ?? "—"}{isHighlighted && showCheckmark && <span style={{ fontSize: "0.65em", opacity: 0.85 }}>✓</span>}
       </span>
     </div>
   );
