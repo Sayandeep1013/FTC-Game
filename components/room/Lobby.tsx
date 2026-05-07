@@ -2,11 +2,11 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoom } from "@/hooks/useRoom";
 import { useSession } from "@/hooks/useSession";
 import { useAuth } from "@/hooks/useAuth";
-import type { Deck } from "@/types";
+import type { Deck, RoomPlayer } from "@/types";
 import Image from "next/image";
 
 interface LobbyProps {
@@ -31,9 +31,21 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
   const [starting, setStarting] = useState(false);
   const [addingAi, setAddingAi] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [wasKicked, setWasKicked] = useState(false);
+  const [kickTarget, setKickTarget] = useState<RoomPlayer | null>(null);
+  const prevAmInRoom = useRef(false);
 
   // Am I already in the room?
   const amInRoom = session ? players.some(p => p.player_id === session.playerId) : false;
+
+  // Detect being kicked: was in room, now not, room still waiting
+  useEffect(() => {
+    if (!session || loading) return;
+    if (prevAmInRoom.current && !amInRoom && room?.status === "waiting") {
+      setWasKicked(true);
+    }
+    prevAmInRoom.current = amInRoom;
+  }, [amInRoom, room?.status, session, loading]);
 
   // If room status changed to "playing", navigate to game
   useEffect(() => {
@@ -55,6 +67,21 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
       body: JSON.stringify({ player_id: oldGuestId }),
     });
   }, [session, players, roomCode]);
+
+  // ── Kicked screen ─────────────────────────────────────────────────────────────
+  if (wasKicked) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="panel-brutal max-w-sm w-full text-center p-8">
+          <p className="font-display text-3xl mb-2">REMOVED</p>
+          <p className="text-sm text-grey-dark mb-6">The host removed you from the lobby.</p>
+          <button className="btn-brutal btn-primary w-full" onClick={() => router.push("/")}>
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading || !session) {
@@ -174,6 +201,15 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
     // Realtime will update room.status → "playing" → triggers router.push above
   }
 
+  async function kickPlayer(targetPlayerId: string) {
+    setKickTarget(null);
+    await fetch(`/api/rooms/${roomCode}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: targetPlayerId, initiator_id: session?.playerId }),
+    });
+  }
+
   async function addAiPlayer() {
     if (isFull || !amHost) return;
     setAddingAi(true);
@@ -214,6 +250,28 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
                 <div className="flex gap-3">
                   <button className="btn-brutal btn-primary flex-1" onClick={handleLeave}>Yes, leave</button>
                   <button className="btn-brutal btn-secondary flex-1" onClick={() => setConfirmLeave(false)}>Stay</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Kick confirm modal */}
+      <AnimatePresence>
+        {kickTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.6)" }}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="panel-brutal w-full max-w-sm mx-4">
+              <div className="bg-black px-5 py-3 border-b-2 border-black">
+                <p className="font-display text-white text-xl tracking-widest">REMOVE PLAYER?</p>
+              </div>
+              <div className="p-5">
+                <p className="text-sm mb-5 text-grey-dark">
+                  Remove <span className="font-bold text-black">{kickTarget.room_username}</span> from the lobby?
+                </p>
+                <div className="flex gap-3">
+                  <button className="btn-brutal btn-primary flex-1" onClick={() => kickPlayer(kickTarget.player_id)}>Remove</button>
+                  <button className="btn-brutal btn-secondary flex-1" onClick={() => setKickTarget(null)}>Cancel</button>
                 </div>
               </div>
             </motion.div>
@@ -271,17 +329,7 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
                   transition={{ delay: i * 0.04 }}
                   className="flex items-center gap-3 px-4 py-3"
                 >
-                  <div className="w-9 h-9 border-2 border-black overflow-hidden flex-shrink-0 bg-grey-light flex items-center justify-center">
-                    {p.is_ai ? (
-                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#4a4a44" strokeWidth="1.8" strokeLinecap="square">
-                        <rect x="5" y="5" width="10" height="10" /><path d="M8 5V2m4 3V2M8 18v-3m4 3v-3M5 8H2m3 4H2m16-4h-3m3 4h-3" />
-                      </svg>
-                    ) : p.avatar_url ? (
-                      <Image src={p.avatar_url} alt={p.room_username} width={36} height={36} className="object-cover w-full h-full" />
-                    ) : (
-                      <span className="font-display text-lg">{p.room_username[0]}</span>
-                    )}
-                  </div>
+                  <PlayerAvatar player={p} />
                   <div className="flex-1 min-w-0">
                     <span className="font-bold text-sm truncate block">{p.room_username}</span>
                     <div className="flex gap-1.5 mt-0.5">
@@ -290,6 +338,16 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
                       {p.player_id === session.playerId && <Badge label="YOU" muted />}
                     </div>
                   </div>
+                  {/* Kick button — host only, not for self */}
+                  {amHost && p.player_id !== session.playerId && (
+                    <button
+                      onClick={() => setKickTarget(p)}
+                      className="w-7 h-7 flex-shrink-0 border border-black flex items-center justify-center text-xs font-bold text-grey-dark hover:bg-black hover:text-white transition-colors"
+                      title={`Remove ${p.room_username}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -352,5 +410,29 @@ function Badge({ label, dark, muted }: { label: string; dark?: boolean; muted?: 
     }`}>
       {label}
     </span>
+  );
+}
+
+function PlayerAvatar({ player }: { player: RoomPlayer }) {
+  const isGuest = player.avatar_url?.includes("guest-") || player.avatar_url?.includes("avatar-0");
+  const isGooglePhoto = player.avatar_url?.startsWith("http");
+
+  return (
+    <div className="w-9 h-9 border-2 border-black overflow-hidden flex-shrink-0 bg-grey-light flex items-center justify-center">
+      {player.is_ai ? (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#4a4a44" strokeWidth="1.8" strokeLinecap="square">
+          <rect x="5" y="5" width="10" height="10" />
+          <path d="M8 5V2m4 3V2M8 18v-3m4 3v-3M5 8H2m3 4H2m16-4h-3m3 4h-3" />
+        </svg>
+      ) : isGooglePhoto ? (
+        <Image src={player.avatar_url!} alt={player.room_username} width={36} height={36} className="object-cover w-full h-full" />
+      ) : isGuest ? (
+        // SVG line-art guest avatar — use img tag for local SVGs
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={player.avatar_url!} alt={player.room_username} className="w-full h-full p-1" />
+      ) : (
+        <span className="font-display text-lg">{player.room_username[0]?.toUpperCase()}</span>
+      )}
+    </div>
   );
 }

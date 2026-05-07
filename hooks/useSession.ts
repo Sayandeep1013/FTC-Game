@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
-import { getRandomPresetAvatar } from "@/lib/utils/avatar";
+import { getPresetAvatar, getRandomPresetAvatar } from "@/lib/utils/avatar";
 
 export interface PlayerSession {
   playerId: string;
@@ -31,7 +31,7 @@ export function useSession(): PlayerSession | null {
         sessionStorage.setItem("ftc_pid", id);
       }
       if (!avatar) {
-        avatar = getRandomPresetAvatar();
+        avatar = getPresetAvatar(id); // deterministic from session ID
         sessionStorage.setItem("ftc_avatar", avatar);
       }
       setSession({ playerId: id, playerType: "guest", avatarUrl: avatar });

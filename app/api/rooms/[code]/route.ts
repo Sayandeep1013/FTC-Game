@@ -60,11 +60,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   return NextResponse.json({ room_id: room.id, room_code: code.toUpperCase() });
 }
 
-// DELETE /api/rooms/[code] — leave a room
+// DELETE /api/rooms/[code] — leave a room OR host kicks a player
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const { player_id } = await req.json();
+  const { player_id, initiator_id } = await req.json();
   const supabase = createAdminClient();
+
+  // If initiator is different from player_id, verify initiator is the host
+  if (initiator_id && initiator_id !== player_id) {
+    const { data: room } = await supabase
+      .from("rooms")
+      .select("host_player_id")
+      .eq("room_code", code.toUpperCase())
+      .single();
+    if (!room || room.host_player_id !== initiator_id) {
+      return NextResponse.json({ error: "Only the host can remove players" }, { status: 403 });
+    }
+  }
 
   const { data: room } = await supabase
     .from("rooms")

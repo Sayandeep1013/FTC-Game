@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+  <!-- Cap / flat top hat -->
+  <circle cx="20" cy="15" r="6"/>
+  <path d="M13 9h14v-3H13z"/>
+  <path d="M11 9h18"/>
+  <path d="M6 38c0-7.732 6.268-14 14-14s14 6.268 14 14"/>
+</svg>
