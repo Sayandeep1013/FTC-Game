@@ -17,12 +17,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const storagePath = `deck-covers/${slug}.${ext}`;
 
   const supabase = createAdminClient();
+
+  // Ensure the bucket exists (no-op if already present)
+  await supabase.storage.createBucket("game-assets", { public: true });
+
   const arrayBuffer = await file.arrayBuffer();
   const { error: uploadError } = await supabase.storage
     .from("game-assets")
     .upload(storagePath, arrayBuffer, { contentType: file.type, upsert: true });
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  if (uploadError) {
+    console.error("Storage upload error:", uploadError);
+    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  }
 
   const { error: dbError } = await supabase
     .from("decks")
