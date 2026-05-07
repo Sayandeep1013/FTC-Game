@@ -179,7 +179,7 @@ async function handlePickStat(roomCode: string, body: {
 
     await db.from("game_states").update({
       phase: nextPhase,
-      called_stat_id: stat_id,
+      called_stat_id: null,   // MUST reset — non-null blocks next round's idempotency check
       winner_player_id: winnerId,
       current_turn_player_id: gameWinnerId ?? winnerId,
       turn_number: gs.turn_number + 1,

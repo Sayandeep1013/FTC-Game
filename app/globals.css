@@ -340,104 +340,97 @@ body {
   flex-shrink: 0;
 }
 
-/* 3-row grid: opponent / center / me */
-.game-board-grid {
+/* Main 3-row grid */
+.game-main-grid {
   flex: 1;
   display: grid;
-  grid-template-rows: 1fr auto 1fr;
+  grid-template-rows: auto 1fr auto;
   overflow: hidden;
-  padding: 8px;
+  padding: 8px 10px;
   gap: 6px;
 }
 
-/* ── Opponent section (top row) ──────────────────────── */
-.game-opp-section {
+/* ── Player rows (top = opponent, bottom = me) ───────────────────────────── */
+.game-player-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
-  min-height: 0;
+  flex-shrink: 0;
 }
-.game-opp-decks {
+.game-player-row-top  { align-items: flex-start; }
+.game-player-row-bottom { align-items: flex-end; }
+
+.game-corner-decks {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-.game-opp-card-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
-.game-opp-timer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 40px;
+  gap: 4px;
 }
 
-/* ── Center (comparison table) ───────────────────────── */
-.game-center {
+.game-player-info {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.game-corner-timer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 52px;
+}
+
+/* ── Card Table ───────────────────────────────────────────────────────────── */
+.game-table-wrapper {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 0;
 }
 
-/* Empty comparison table placeholder */
-.comparison-table-empty {
+.game-table {
+  display: grid;
+  grid-template-columns: 1fr 140px 1fr;
   width: 100%;
-  max-width: 480px;
-  border: 2px solid var(--grey-light);
-  border-radius: 0;
-  display: grid;
-  grid-template-columns: 1fr 2px 1fr;
-  height: 80px;
+  max-width: 680px;
+  border: 3px solid var(--black);
+  box-shadow: 6px 6px 0 var(--black);
+  background: var(--grey-light);
+  min-height: 0;
+  flex: 1;
 }
-.comparison-placeholder-left,
-.comparison-placeholder-right {
+
+/* Each card slot */
+.game-table-slot {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-}
-.comparison-placeholder-divider {
-  background: var(--grey-light);
+  padding: 12px 10px;
+  min-height: 200px;
 }
 
-/* ── My section (bottom row) ─────────────────────────── */
-.game-my-section {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+/* Center info panel */
+.game-table-center-panel {
+  border-left: 2px solid var(--black);
+  border-right: 2px solid var(--black);
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
   gap: 8px;
-  min-height: 0;
-}
-.game-my-decks {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-.game-my-card-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-}
-.game-my-timer-area {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 40px;
+  min-height: 200px;
 }
 
-/* Mobile: compress */
+/* Mobile compact */
 @media (max-height: 600px) {
-  .game-board-grid { gap: 4px; padding: 4px; }
-  .game-topbar { padding: 3px 8px; font-size: 0.7rem; }
+  .game-main-grid  { padding: 4px 6px; gap: 4px; }
+  .game-topbar { padding: 3px 8px; font-size: 0.65rem; }
+  .game-table-slot { min-height: 160px; padding: 8px 6px; }
+  .game-table-center-panel { min-height: 160px; }
+  .game-corner-decks { gap: 2px; }
 }
 
-/* Touch devices — always show deck card buttons */
 .rotate-prompt { display: none; }
