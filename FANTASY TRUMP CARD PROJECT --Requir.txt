@@ -1,0 +1,89 @@
+FANTASY TRUMP CARD PROJECT --Requirements Document
+Introduction
+A real-time multiplayer modern fantasy trump card game website featuring multiple themed decks (Ben 10, Power Rangers, Superheroes, Dragon Ball, etc.). Players can create or join rooms, play against each other or AI, and compete using cards with various stats in a turn-based comparison format. The game supports 2-4 players with real-time synchronization 
+
+Requirement 1: Deck Selection and Management
+1. WHEN the homepage loads THEN the system SHALL display a heading with the project name
+2. WHEN the homepage loads THEN the system SHALL display a slider/carousel showing multiple deck options (Ben 10, Power Rangers, Superheroes, Dragon Ball, etc.)
+3. WHEN a user hovers over a deck THEN the system SHALL show two buttons: "Play" and "Show Details"
+4. WHEN a user clicks "Show Details" THEN the system SHALL open a modal displaying all cards from that deck
+5. WHEN the details modal is open THEN the system SHALL provide a close button (X) in the top-right corner
+6. WHEN the close button is clicked THEN the system SHALL close the modal and return to the main view
+
+Requirement 2: Room Management and Matchmaking
+1. WHEN a user clicks "Play" on a deck THEN the system SHALL open a room management modal
+2. WHEN the room modal opens THEN the system SHALL provide three options: "Create Room", "Join Room", and "Play with AI"
+3. WHEN a user selects "Create Room" THEN the system SHALL ask for player count selection (2, 3, or 4 players)
+4. WHEN a room is created THEN the system SHALL generate and display a unique room code
+5. WHEN a user selects "Join Room" THEN the system SHALL prompt for a room code input
+6. WHEN a valid room code is entered THEN the system SHALL add the player to that room
+7. WHEN the required number of players join a room THEN the system SHALL automatically start the game
+8. IF a room is not full THEN the system SHALL wait for additional players before starting
+
+ Requirement 3: Card Structure and Display
+1. WHEN a card is displayed THEN the system SHALL show the card in three sections: image (top), name (middle), stats (bottom)
+2. WHEN displaying card stats THEN the system SHALL show 8 stats in 2 columns (4 left, 4 right)
+3. WHEN displaying stats THEN the system SHALL include: Rank (1-52), Strength, Stamina, Height, Weight, Psychic, IQ, Speed
+4. WHEN showing rank stat THEN the system SHALL use values from 1-52 where lower numbers are better
+5. WHEN showing other stats THEN the system SHALL use numerical values where higher numbers are better
+6. WHEN a card is in play THEN the system SHALL clearly highlight which stats can be selected
+
+Requirement 4: Game Initialization and Card Distribution
+1. WHEN a game starts THEN the system SHALL display all 52 cards from the selected deck
+2. WHEN cards are shown THEN the system SHALL animate the shuffling process
+3. WHEN there are 2 players THEN the system SHALL deal 26 cards to each player
+4. WHEN there are 3 players THEN the system SHALL deal 17 cards to each player (1 card remains unused)
+5. WHEN there are 4 players THEN the system SHALL deal 13 cards to each player
+6. WHEN cards are dealt THEN the system SHALL create a main deck for each player
+7. WHEN dealing is complete THEN the system SHALL randomly select the first player to call stats
+
+Requirement 5: Turn-Based Stat Calling and Comparison
+1. WHEN it's a player's turn THEN the system SHALL display their top card with selectable stats
+2. WHEN a player selects a stat THEN the system SHALL move all players' top cards to the comparison area
+3. WHEN cards are in comparison THEN the system SHALL display the called stat values for all cards
+4. WHEN comparing stats (except rank) THEN the system SHALL determine the winner as the highest value
+5. WHEN comparing rank stats THEN the system SHALL determine the winner as the lowest value
+6. WHEN a winner is determined THEN the system SHALL move all comparison cards to the winner's side deck
+7. WHEN a round ends THEN the system SHALL give the winner the next turn to call stats
+
+Requirement 6: Side Deck Management and Reshuffling
+1. WHEN a player wins cards THEN the system SHALL add them to the player's side deck
+2. WHEN a player's main deck is empty AND they have a side deck THEN the system SHALL shuffle the side deck
+3. WHEN the side deck is shuffled THEN the system SHALL make it the new main deck
+4. WHEN reshuffling occurs THEN the system SHALL animate the shuffle process
+5. WHEN a new main deck is created THEN the system SHALL continue gameplay normally
+
+Requirement 7: Tie Handling and Resolution
+1. WHEN stats are tied in a 2-player game THEN the system SHALL let the original caller choose another stat from their next card
+2. WHEN stats are tied with 3+ players AND the caller has the lowest tied value THEN the system SHALL let the caller choose again
+3. WHEN stats are tied with 3+ players AND tied players have higher values than the caller THEN the system SHALL continue with only the tied players
+4. WHEN tied players continue THEN the system SHALL use the same stat for comparison until a winner emerges
+5. WHEN a tie is resolved THEN the system SHALL award all tied round cards to the winner
+6. WHEN multiple tie rounds occur THEN the system SHALL accumulate all cards for the final winner
+
+Requirement 8: Game End Conditions and Victory
+1. WHEN a player has no cards in both main deck and side deck THEN the system SHALL eliminate that player
+2. WHEN only one player remains with cards THEN the system SHALL declare them the winner
+3. WHEN a winner is determined THEN the system SHALL display a victory modal to the winner
+4. WHEN players lose THEN the system SHALL display a defeat modal to eliminated players
+5. WHEN the game ends THEN the system SHALL provide options to play again or return to deck selection
+6. WHEN a player is eliminated in a 3+ player game THEN the system SHALL continue with remaining players
+
+Requirement 9: Real-time Synchronization
+1. WHEN any player takes an action THEN the system SHALL broadcast the update to all players in the room
+2. WHEN a player joins or leaves THEN the system SHALL notify all room members
+3. WHEN cards are played or moved THEN the system SHALL synchronize the animation across all clients
+4. WHEN game state changes THEN the system SHALL ensure all players see the same information
+5. IF a player disconnects THEN the system SHALL handle reconnection gracefully
+6. WHEN reconnecting THEN the system SHALL restore the current game state for the returning player
+
+Requirement 10: Database Integration and Persistence
+1. WHEN a room is created THEN the system SHALL store room details in DB
+2. WHEN players join rooms THEN the system SHALL update player associations in the database
+3. WHEN game state changes THEN the system SHALL persist critical game data
+4. WHEN cards are defined THEN the system SHALL store deck and card information in structured tables
+5. WHEN games end THEN the system SHALL clean up temporary room data
+6. IF database operations fail THEN the system SHALL handle errors gracefully and notify users
+
+
+

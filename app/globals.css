@@ -1,0 +1,351 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --black: #0a0a0a;
+  --white: #f5f5f0;
+  --grey-light: #e0e0da;
+  --grey-mid: #b0b0a8;
+  --grey-dark: #4a4a44;
+
+  --border-thin: 1.5px solid var(--black);
+  --border-base: 2px solid var(--black);
+  --border-thick: 3px solid var(--black);
+  --border-heavy: 4px solid var(--black);
+
+  --shadow-sm: 3px 3px 0px var(--black);
+  --shadow-base: 4px 4px 0px var(--black);
+  --shadow-lg: 6px 6px 0px var(--black);
+  --shadow-xl: 8px 8px 0px var(--black);
+  --shadow-card: 5px 5px 0px var(--black);
+}
+
+/* ── Base Reset ─────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans), sans-serif;
+  background-color: var(--white);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────────── */
+.font-display {
+  font-family: "Bebas Neue", sans-serif;
+}
+
+.font-mono-game {
+  font-family: var(--font-mono), monospace;
+}
+
+/* ── Neo-Brutalism Utilities ────────────────────────────────────────────────── */
+@layer utilities {
+  /* Buttons */
+  .btn-brutal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 22px;
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: var(--border-base);
+    cursor: pointer;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .btn-brutal:active {
+    transform: translate(4px, 4px) !important;
+    box-shadow: none !important;
+  }
+
+  /* Dark button — press-in on hover, border flips to inner white line */
+  .btn-primary {
+    background: var(--black);
+    color: var(--white);
+    box-shadow: var(--shadow-base);
+    outline: 2px solid transparent;
+    outline-offset: -4px;
+    transition: transform 80ms ease, box-shadow 80ms ease, outline-color 80ms ease;
+  }
+
+  .btn-primary:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px var(--black);
+    outline-color: rgba(245, 245, 240, 0.25); /* subtle inner white ring */
+  }
+
+  /* Light button — background tints to grey-light on hover */
+  .btn-secondary {
+    background: var(--white);
+    color: var(--black);
+    box-shadow: var(--shadow-base);
+    transition: transform 80ms ease, box-shadow 80ms ease, background 80ms ease;
+  }
+
+  .btn-secondary:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px var(--black);
+    background: var(--grey-light);
+  }
+
+  /* Inline card-level dark button — used inside deck cards & modals */
+  .deck-btn-dark {
+    background: var(--black);
+    color: var(--white);
+    cursor: pointer;
+    transition: background 100ms ease;
+    border: none;
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 700;
+  }
+
+  .deck-btn-dark:hover {
+    background: #262626; /* very slightly lighter than pure black — clear feedback without going grey */
+  }
+
+  .deck-btn-dark:active {
+    background: #181818;
+  }
+
+  /* Inline card-level light button */
+  .deck-btn-light {
+    background: var(--white);
+    color: var(--black);
+    cursor: pointer;
+    transition: background 100ms ease;
+    border: none;
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 700;
+  }
+
+  .deck-btn-light:hover {
+    background: var(--grey-light);
+  }
+
+  .deck-btn-light:active {
+    background: var(--grey-mid);
+  }
+
+  /* Panels / Cards / Modals */
+  .panel-brutal {
+    background: var(--white);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-card);
+  }
+
+  .panel-brutal-dark {
+    background: var(--black);
+    color: var(--white);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Input fields */
+  .input-brutal {
+    width: 100%;
+    padding: 10px 14px;
+    font-family: var(--font-sans), sans-serif;
+    font-size: 1rem;
+    background: white;
+    border: var(--border-base);
+    box-shadow: var(--shadow-sm);
+    outline: none;
+    transition: box-shadow 80ms ease;
+  }
+
+  .input-brutal:focus {
+    box-shadow: var(--shadow-base);
+  }
+
+  .input-brutal::placeholder {
+    color: var(--grey-mid);
+  }
+
+  /* Room code display */
+  .room-code {
+    font-family: var(--font-mono), monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    background: var(--black);
+    color: var(--white);
+    padding: 10px 20px;
+    border: var(--border-thick);
+    display: inline-block;
+  }
+
+  /* Card stripe back pattern */
+  .card-back-pattern {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--black),
+      var(--black) 2px,
+      var(--white) 2px,
+      var(--white) 12px
+    );
+  }
+
+  /* Stat row in card */
+  .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: background 80ms ease, color 80ms ease;
+    border-bottom: 1px solid var(--grey-light);
+  }
+
+  .stat-row:hover,
+  .stat-row.selected {
+    background: var(--black);
+    color: var(--white);
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--grey-dark);
+    font-weight: 600;
+  }
+
+  .stat-row:hover .stat-label,
+  .stat-row.selected .stat-label {
+    color: var(--grey-mid);
+  }
+
+  .stat-value {
+    font-family: var(--font-mono), monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+  }
+
+  /* Scrollbar styling */
+  .scrollbar-brutal::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-brutal::-webkit-scrollbar-track {
+    background: var(--grey-light);
+    border: 1px solid var(--black);
+  }
+  .scrollbar-brutal::-webkit-scrollbar-thumb {
+    background: var(--black);
+  }
+}
+
+/* ── Card 3D Tilt (JS-driven via CSS vars) ──────────────────────────────────── */
+.card-tilt {
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transition: transform 0.1s ease;
+}
+
+/* ── Timer Bar ──────────────────────────────────────────────────────────────── */
+.timer-track {
+  width: 100%;
+  height: 6px;
+  background: var(--grey-light);
+  border: 1px solid var(--black);
+  overflow: hidden;
+}
+
+.timer-fill {
+  height: 100%;
+  background: var(--black);
+  transition: width 1s linear;
+}
+
+/* ── Active card glow (it's-your-turn) ─────────────────────────────────────── */
+.card-active {
+  box-shadow: 6px 6px 0px var(--black);
+  animation: pulse-border 1.2s ease-in-out infinite;
+}
+
+/* ── Loading screen ─────────────────────────────────────────────────────────── */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.loading-progress-track {
+  width: min(400px, 80vw);
+  height: 8px;
+  border: 2px solid var(--white);
+  margin-top: 24px;
+  overflow: hidden;
+}
+
+.loading-progress-fill {
+  height: 100%;
+  background: var(--white);
+  transition: width 0.3s ease;
+}
+
+/* ── Mobile landscape enforcement (in-game) ─────────────────────────────────── */
+@media (max-width: 768px) and (orientation: portrait) {
+  .game-board-wrapper {
+    display: none;
+  }
+  .rotate-prompt {
+    display: flex;
+  }
+}
+
+@media (min-width: 769px), (orientation: landscape) {
+  .rotate-prompt {
+    display: none;
+  }
+}
+
+.rotate-prompt {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  color: var(--white);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 200;
+  font-family: var(--font-sans), sans-serif;
+  text-align: center;
+  padding: 24px;
+}
