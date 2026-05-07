@@ -8,10 +8,10 @@ import { TableCard } from "./TableCard";
 import { DeckPile } from "./DeckPile";
 import { TimerCircle } from "./TimerCircle";
 import { WinLoseModal } from "./WinLoseModal";
-import type { StatDefinition } from "@/types";
 
 const AI_THINK_MS = 1800;
-const COMPARISON_SHOW_MS = 4200;
+// Comparison shows for 5 seconds — enough to read the result clearly
+const COMPARISON_SHOW_MS = 5000;
 
 export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: string }) {
   const session = useSession();
@@ -20,15 +20,18 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     isMyTurn, isEliminated, gameOver, gameWinnerId, pickStat,
   } = useGame(roomCode, session?.playerId ?? null);
 
-  // Cards currently on the table (separate from DB state — kept during animation)
+  // Cards currently rendered on the table (persisted through comparison phase)
   const [tableMyCard, setTableMyCard] = useState<CardInfo | null>(null);
-  const [tableOppCard, setTableOppCard] = useState<CardInfo | null>(null);
+  // All opponents' cards on table: player_id → CardInfo
+  const [tableOppCards, setTableOppCards] = useState<Record<string, CardInfo | null>>({});
   const [tableCalledStatId, setTableCalledStatId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [displayedResult, setDisplayedResult] = useState<RoundResult | null>(null);
   const [timerKey, setTimerKey] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
 
+  // Guard: prevents drawing next card while a comparison is in progress or just picked
+  const comparingRef = useRef(false);
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTurnRef = useRef(-1);
@@ -39,33 +42,25 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   const potCount = (roundData.pot_card_ids as string[] | undefined)?.length ?? 0;
   const lastResult = roundData.last_result as RoundResult | undefined;
 
-  // ── Draw my card onto table when it's my turn ─────────────────────────────
+  const allPlayers = [...(myHand ? [myHand] : []), ...opponents];
+  const playerNameMap: Record<string, string> = {};
+  for (const p of allPlayers) playerNameMap[p.player_id] = p.room_username;
+
+  // ── When it's my turn: draw my card to the table ─────────────────────────
   useEffect(() => {
-    if (isMyTurn && !showResult && myHand?.top_card && gameState?.phase === "stat_selection") {
-      // Brief delay so "table clears" before new card slides in
+    if (isMyTurn && !showResult && !comparingRef.current && myHand?.top_card && gameState?.phase === "stat_selection") {
       const t = setTimeout(() => {
         setTableMyCard(myHand.top_card);
         setTimerKey(k => k + 1);
         setTimerActive(true);
-      }, 200);
+      }, 300); // brief delay so table clears visually before new card arrives
       return () => clearTimeout(t);
     }
     if (!isMyTurn) {
       setTimerActive(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMyTurn, myHand?.top_card?.id, gameState?.phase, showResult]);
-
-  // ── When opponent's turn — show their card face-down on table ─────────────
-  useEffect(() => {
-    if (!isMyTurn && !showResult && gameState?.phase === "stat_selection") {
-      const opp = opponents[0];
-      if (opp?.top_card) {
-        const t = setTimeout(() => setTableMyCard(null), 100); // clear my card
-        // Opp card shows face-down (no need to set tableOppCard yet — shown during comparison)
-        return () => clearTimeout(t);
-      }
-    }
-  }, [isMyTurn, opponents, gameState?.phase, showResult]);
 
   // ── Detect new round result ───────────────────────────────────────────────
   useEffect(() => {
@@ -74,30 +69,33 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     lastTurnRef.current = turn;
 
     setTimerActive(false);
+    comparingRef.current = true; // Block new card draws until comparison ends
 
-    // Find opponent's card from the result
-    const myId = session?.playerId;
-    const oppCardEntry = lastResult.cards.find(c => c.player_id !== myId);
-    const oppCard = oppCardEntry ? allCards[oppCardEntry.card_id] : null;
-
-    setTableOppCard(oppCard ?? null);
+    // Build opp card map from result (safe: allCards always has every card)
+    const newOppCards: Record<string, CardInfo | null> = {};
+    for (const c of lastResult.cards) {
+      if (c.player_id !== session?.playerId) {
+        newOppCards[c.player_id] = allCards[c.card_id] ?? null;
+      }
+    }
+    setTableOppCards(newOppCards);
     setTableCalledStatId(lastResult.stat_id);
     setDisplayedResult(lastResult);
     setShowResult(true);
 
-    // Clear table after comparison
     if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
     resultTimeoutRef.current = setTimeout(() => {
       setShowResult(false);
       setTableMyCard(null);
-      setTableOppCard(null);
+      setTableOppCards({});
       setTableCalledStatId(null);
       setDisplayedResult(null);
+      comparingRef.current = false; // allow next card draw
     }, COMPARISON_SHOW_MS);
-  }, [gameState?.turn_number, lastResult, session?.playerId, allCards]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.turn_number, lastResult]);
 
-  // ── AI auto-pick ──────────────────────────────────────────────────────────
-  const allPlayers = [...(myHand ? [myHand] : []), ...opponents];
+  // ── AI auto-pick ─────────────────────────────────────────────────────────
   const currentAiPlayer = (gameState?.phase === "stat_selection" && !showResult)
     ? allPlayers.find(p => p.player_id === gameState.current_turn_player_id && p.is_ai && p.top_card)
     : null;
@@ -121,23 +119,20 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     return () => { if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current); };
   }, [aiPlayerId, aiHasCard, currentTurn, isTieActive, tiedStatId, statDefs, roomCode]);
 
-  // ── Timer expiry ──────────────────────────────────────────────────────────
+  // ── Timer expiry (auto-pick) ──────────────────────────────────────────────
   const handleTimerExpire = useCallback(() => {
-    if (!isMyTurn || showResult || gameState?.phase !== "stat_selection") return;
+    if (!isMyTurn || showResult || comparingRef.current || gameState?.phase !== "stat_selection") return;
     const available = statDefs.filter(s => !isTieActive || !tiedStatId || s.id === tiedStatId);
     if (!available.length) return;
     const stat = available[Math.floor(Math.random() * available.length)];
+    comparingRef.current = true; // prevent duplicate fires
     pickStat(stat.id);
   }, [isMyTurn, showResult, gameState?.phase, statDefs, isTieActive, tiedStatId, pickStat]);
 
-  // ── Derived values ────────────────────────────────────────────────────────
-  const opponent = opponents[0] ?? null;
-  const playerNameMap: Record<string, string> = {};
-  for (const p of allPlayers) playerNameMap[p.player_id] = p.room_username;
   const winnerName = allPlayers.find(p => p.player_id === gameWinnerId)?.room_username ?? "CPU";
   const currentTurnName = allPlayers.find(p => p.player_id === gameState?.current_turn_player_id)?.room_username ?? "?";
-
   const calledStatDef = statDefs.find(s => s.id === tableCalledStatId);
+  const oppCards = Object.entries(tableOppCards); // [player_id, CardInfo|null][]
 
   if (loading || !session) {
     return (
@@ -147,6 +142,7 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="game-layout">
       {gameOver && gameWinnerId && (
@@ -171,122 +167,125 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
 
         {/* ═══ OPPONENT ROW ═══ */}
         <div className="game-player-row game-player-row-top">
-          {/* Decks top-left */}
+          {/* Deck piles for first opponent (top-left) */}
           <div className="game-corner-decks">
-            {opponent && (
+            {opponents[0] && (
               <>
-                <DeckPile count={opponent.main_count} label="Main" width={44} height={60} />
-                <DeckPile count={opponent.side_count} label="Side" width={44} height={60} />
+                <DeckPile count={opponents[0].main_count} label="Main" width={44} height={60} />
+                <DeckPile count={opponents[0].side_count} label="Side" width={44} height={60} />
               </>
             )}
           </div>
 
-          {/* Opponent info + turn indicator */}
+          {/* Opponent names row */}
           <div className="game-player-info">
-            <div className="flex items-center gap-2">
-              {!isMyTurn && !showResult && (
-                <BouncingArrow direction="down" />
+            <div className="flex items-center gap-3 flex-wrap">
+              {!isMyTurn && !showResult && <BouncingArrow direction="down" />}
+              {opponents.map(opp => (
+                <div key={opp.player_id} className="flex items-center gap-1">
+                  <span className="text-xs font-bold uppercase tracking-wider">{opp.room_username}</span>
+                  {opp.is_ai && <span className="text-[8px] bg-grey-light border border-black px-1">CPU</span>}
+                  {opp.is_eliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
+                </div>
+              ))}
+              {!isMyTurn && !showResult && opponents.some(o => o.is_ai) && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[8px] text-grey-mid uppercase tracking-wider">thinking</span>
+                </div>
               )}
-              <span className="text-xs font-bold uppercase tracking-wider">
-                {opponent?.room_username ?? "Opponent"}
-              </span>
-              {opponent?.is_ai && <span className="text-[8px] bg-grey-light border border-black px-1">CPU</span>}
-              {opponent?.is_eliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
             </div>
-            {/* Opponent thinking indicator */}
-            {!isMyTurn && !showResult && opponent?.is_ai && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                <span className="text-[8px] text-grey-mid uppercase tracking-wider">thinking</span>
-              </div>
-            )}
           </div>
 
-          {/* Opp timer placeholder (right side) */}
-          <div className="game-corner-timer" />
+          {/* Extra deck piles for 3-4 players — top-right */}
+          <div className="game-corner-decks" style={{ alignItems: "flex-end" }}>
+            {opponents.length > 1 && opponents[1] && (
+              <>
+                <DeckPile count={opponents[1].main_count} label="Main" width={44} height={60} />
+                <DeckPile count={opponents[1].side_count} label="Side" width={44} height={60} />
+              </>
+            )}
+          </div>
         </div>
 
         {/* ═══ CARD TABLE ═══ */}
         <div className="game-table-wrapper">
-          <div className="game-table">
+          <div className="game-table" style={{ gridTemplateColumns: opponents.length > 1 ? `repeat(${opponents.length}, 1fr) 140px 1fr` : "1fr 140px 1fr" }}>
 
-            {/* Left slot: opponent's card */}
-            <div className="game-table-slot">
-              <AnimatePresence>
-                {showResult && tableOppCard ? (
-                  <TableCard
-                    key="opp-card"
-                    card={tableOppCard}
-                    statDefs={statDefs}
-                    highlightStatId={tableCalledStatId}
-                    enterFrom="top"
-                    label={opponent?.room_username}
-                  />
-                ) : !isMyTurn && !showResult && opponent && !opponent.is_eliminated && opponent.top_card ? (
-                  // Face-down while opponent is picking
-                  <motion.div
-                    key="opp-facedown"
-                    initial={{ y: -30, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                    className="flex flex-col items-center gap-1.5"
-                  >
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{opponent.room_username}</p>
-                    <div
-                      className="card-back-pattern border-2 border-black"
-                      style={{ width: 170, height: 250, boxShadow: "4px 4px 0 #0a0a0a" }}
-                    />
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
+            {/* Opponent card slots — one per opponent */}
+            {opponents.map((opp, i) => {
+              const oppCardData = showResult ? tableOppCards[opp.player_id] : null;
+              const isOppTurn = gameState?.current_turn_player_id === opp.player_id;
 
-            {/* Center: stat call + comparison info */}
-            <div className="game-table-center-panel">
+              return (
+                <div key={opp.player_id} className="game-table-slot" style={{ borderRight: i < opponents.length - 1 ? "1px solid #e0e0da" : undefined }}>
+                  <AnimatePresence>
+                    {showResult && oppCardData ? (
+                      <TableCard
+                        key={`opp-${opp.player_id}-${gameState?.turn_number}`}
+                        card={oppCardData}
+                        statDefs={statDefs}
+                        highlightStatId={tableCalledStatId}
+                        enterFrom="top"
+                        label={opp.room_username}
+                      />
+                    ) : !showResult && isOppTurn && opp.top_card && !opp.is_eliminated ? (
+                      /* Face-down while opponent picks */
+                      <motion.div
+                        key={`opp-facedown-${opp.player_id}`}
+                        initial={{ y: -28, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ opacity: 0, scale: 0.85 }}
+                        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                        className="flex flex-col items-center gap-1.5"
+                      >
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{opp.room_username}</p>
+                        <div className="card-back-pattern border-2 border-black" style={{ width: 170, height: 250, boxShadow: "4px 4px 0 #0a0a0a" }} />
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+
+            {/* Center panel: stat info + comparison scores */}
+            <div className="game-table-center-panel" style={{ borderLeft: "2px solid #0a0a0a", borderRight: "2px solid #0a0a0a" }}>
               {showResult && calledStatDef ? (
-                <div className="flex flex-col items-center gap-3 w-full">
-                  {/* Called stat */}
-                  <div className="w-full text-center border-2 border-black bg-black py-2 px-3">
-                    <p className="text-[9px] text-grey-mid uppercase tracking-widest">Stat Called</p>
-                    <p className="font-display text-white text-lg tracking-wider">{calledStatDef.display_name}</p>
+                <div className="flex flex-col items-center gap-2 w-full">
+                  <div className="w-full text-center border-2 border-black bg-black py-2 px-2">
+                    <p className="text-[8px] text-grey-mid uppercase tracking-widest">Stat Called</p>
+                    <p className="font-display text-white text-base tracking-wider">{calledStatDef.display_name}</p>
                   </div>
-
-                  {/* Score rows */}
                   <div className="w-full flex flex-col gap-1">
                     {displayedResult?.cards.map(c => {
-                      const name = playerNameMap[c.player_id] ?? "?";
                       const isMe = c.player_id === session.playerId;
+                      const name = isMe ? "You" : (playerNameMap[c.player_id] ?? "?");
                       return (
-                        <div key={c.player_id} className={`flex items-center justify-between px-2 py-1.5 border-2 ${c.is_winner ? "border-black bg-black" : "border-grey-light bg-white"}`}>
-                          <span className={`text-[9px] font-bold uppercase tracking-wider ${c.is_winner ? "text-white" : "text-grey-dark"}`}>
-                            {isMe ? "You" : name}{c.is_winner ? " ✓" : ""}
+                        <div key={c.player_id} className={`flex items-center justify-between px-2 py-1.5 border-2 ${c.is_winner ? "border-black bg-black" : "border-grey-light"}`}>
+                          <span className={`text-[8px] font-bold uppercase tracking-wider truncate ${c.is_winner ? "text-white" : "text-grey-dark"}`}>
+                            {name}{c.is_winner ? " ✓" : ""}
                           </span>
-                          <span className={`font-mono font-bold text-sm ${c.is_winner ? "text-white" : "text-black"}`}>{c.value}</span>
+                          <span className={`font-mono font-bold text-sm ml-1 ${c.is_winner ? "text-white" : "text-black"}`}>{c.value}</span>
                         </div>
                       );
                     })}
                   </div>
-
-                  {/* Result summary */}
                   {displayedResult && (
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark text-center">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-grey-dark text-center leading-tight">
                       {displayedResult.was_tie
-                        ? `Tie — pot grows to ${potCount + (displayedResult.cards.length)} cards`
-                        : displayedResult.winner_id === session.playerId
-                        ? "You win this round!"
-                        : `${playerNameMap[displayedResult.winner_id ?? ""] ?? "?"} wins`}
+                        ? `Tie — pot ${potCount + displayedResult.cards.length}`
+                        : displayedResult.winner_id === session.playerId ? "You win!" : `${playerNameMap[displayedResult.winner_id ?? ""] ?? "?"} wins`}
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="text-center opacity-30">
+                <div className="text-center opacity-20 select-none">
                   <p className="font-display text-3xl">vs</p>
                 </div>
               )}
             </div>
 
-            {/* Right slot: my card */}
+            {/* My card slot */}
             <div className="game-table-slot">
               <AnimatePresence>
                 {tableMyCard && (
@@ -295,7 +294,11 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                     card={tableMyCard}
                     statDefs={statDefs}
                     isActive={isMyTurn && !showResult}
-                    onPickStat={isMyTurn && !showResult ? pickStat : undefined}
+                    onPickStat={isMyTurn && !showResult ? (statId) => {
+                      comparingRef.current = true; // guard immediately
+                      setTimerActive(false);
+                      pickStat(statId);
+                    } : undefined}
                     highlightStatId={showResult ? tableCalledStatId : undefined}
                     lockedStatId={isTieActive ? tiedStatId : null}
                     enterFrom="bottom"
@@ -307,21 +310,19 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
 
           </div>
 
-          {/* Prompt below table */}
           {isMyTurn && !showResult && tableMyCard && !isEliminated && (
             <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="text-center text-[9px] font-bold uppercase tracking-widest text-grey-dark mt-2"
             >
-              {isTieActive && tiedStatId ? "Locked stat — must use highlighted" : "Tap a stat to call it →"}
+              {isTieActive && tiedStatId ? "Locked — tap the highlighted stat" : "Tap a stat on your card to call it"}
             </motion.p>
           )}
         </div>
 
         {/* ═══ MY ROW ═══ */}
         <div className="game-player-row game-player-row-bottom">
-          {/* Decks bottom-left */}
           <div className="game-corner-decks">
             {myHand && (
               <>
@@ -331,27 +332,26 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
             )}
           </div>
 
-          {/* My info + turn indicator */}
           <div className="game-player-info">
             <div className="flex items-center gap-2">
-              {isMyTurn && !showResult && (
-                <BouncingArrow direction="up" />
-              )}
+              {isMyTurn && !showResult && <BouncingArrow direction="up" />}
               <span className="text-xs font-bold uppercase tracking-wider">You</span>
               {isEliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
             </div>
           </div>
 
-          {/* Timer bottom-right */}
           <div className="game-corner-timer">
-            {isMyTurn && !showResult && !isEliminated && (
-              <TimerCircle
-                key={timerKey}
-                active={timerActive}
-                onExpire={handleTimerExpire}
-                size={48}
-              />
-            )}
+            <AnimatePresence>
+              {isMyTurn && !showResult && !isEliminated && (
+                <motion.div key={timerKey} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+                  <TimerCircle
+                    active={timerActive}
+                    onExpire={handleTimerExpire}
+                    size={48}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -360,15 +360,13 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 function BouncingArrow({ direction }: { direction: "up" | "down" }) {
   return (
     <motion.svg
       width={20} height={20} viewBox="0 0 20 20" fill="none"
       animate={{ y: direction === "up" ? [0, -4, 0] : [0, 4, 0] }}
       transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
-      style={{ transform: direction === "down" ? "rotate(180deg)" : undefined }}
+      style={{ transform: direction === "down" ? "rotate(180deg)" : undefined, flexShrink: 0 }}
     >
       <path d="M10 17 L2 7 L7 7 L7 3 L13 3 L13 7 L18 7 Z" fill="#0a0a0a" />
     </motion.svg>

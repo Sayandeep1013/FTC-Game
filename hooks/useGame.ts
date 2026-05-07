@@ -105,8 +105,11 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "pick_stat", player_id: myPlayerId, stat_id: statId }),
     });
-    // Immediately re-fetch with force=true — active player gets result without waiting for broadcast
-    fetchAndSet(true);
+    // Do NOT fetchAndSet(true) here — that would load next-turn state before showResult fires,
+    // causing the next card to appear while comparison is still supposed to be showing.
+    // Instead: broadcast arrives in ~50ms + server time;
+    // fallback fetch 1.2s later in case broadcast missed.
+    setTimeout(() => fetchAndSet(true), 1200);
   }, [roomCode, myPlayerId, fetchAndSet]);
 
   // ── Derive computed state ─────────────────────────────────────────────────

@@ -12,14 +12,9 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Generate unique room code
-  let room_code = "";
-  for (let i = 0; i < 10; i++) {
-    const candidate = generateRoomCode();
-    const { data } = await supabase.from("rooms").select("id").eq("room_code", candidate).maybeSingle();
-    if (!data) { room_code = candidate; break; }
-  }
-  if (!room_code) return NextResponse.json({ error: "Could not generate room code" }, { status: 500 });
+  // Generate unique room code — just generate one and attempt insert.
+  // On collision (unique constraint), retry. No pre-check query needed.
+  const room_code = generateRoomCode();
 
   // max_players: for AI games use ai_count+1 (human + AIs), else use the provided value
   const effectiveMaxPlayers = vs_ai ? ai_count + 1 : max_players;

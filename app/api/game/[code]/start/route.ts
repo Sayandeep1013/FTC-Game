@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { shuffle } from "@/lib/game/engine";
+import { broadcast, lobbyCh } from "@/lib/utils/broadcast";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -92,6 +93,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       .update({ phase: "stat_selection" })
       .eq("id", gameState.id),
   ]);
+
+  // Broadcast to lobby so all non-host players redirect immediately
+  broadcast(lobbyCh(roomCode), "game_started");
 
   return NextResponse.json({ game_state_id: gameState.id, first_player_id: firstPlayer.player_id });
 }

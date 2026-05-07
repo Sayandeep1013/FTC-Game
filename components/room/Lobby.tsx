@@ -193,12 +193,17 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
 
   async function startGame() {
     setStarting(true);
-    await fetch(`/api/game/${roomCode}/start`, {
+    const res = await fetch(`/api/game/${roomCode}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player_id: session?.playerId }),
     });
-    // Realtime will update room.status → "playing" → triggers router.push above
+    if (res.ok) {
+      // Host redirects immediately — broadcast notifies other players
+      router.push(`/room/${roomCode}/game`);
+    } else {
+      setStarting(false);
+    }
   }
 
   async function kickPlayer(targetPlayerId: string) {

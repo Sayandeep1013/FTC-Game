@@ -37,8 +37,9 @@ export function useRoom(roomCode: string, myPlayerId: string | null) {
 
     const channel = supabase
       .channel(`room-lobby-${roomCode}`)
-      // Fast path: broadcast from join/leave/add-AI APIs (~50ms)
+      // Fast path: broadcasts from join/leave/add-AI/start APIs (~50ms)
       .on("broadcast", { event: "players_changed" }, () => fetchRoom())
+      .on("broadcast", { event: "game_started" },    () => fetchRoom()) // triggers room.status redirect
       // Reliable fallback: Postgres Changes (~400ms, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "room_players" }, () => fetchRoom())
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms" }, () => fetchRoom())

@@ -391,15 +391,14 @@ body {
 }
 
 .game-table {
+  /* grid-template-columns set inline based on opponent count */
   display: grid;
-  grid-template-columns: 1fr 140px 1fr;
   width: 100%;
-  max-width: 680px;
+  max-width: 780px;
   border: 3px solid var(--black);
   box-shadow: 6px 6px 0 var(--black);
   background: var(--grey-light);
   min-height: 0;
-  flex: 1;
 }
 
 /* Each card slot */
