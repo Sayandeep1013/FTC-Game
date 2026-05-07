@@ -42,6 +42,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   const aiTimeoutRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTurnRef       = useRef(-1);
   const turnStartedAtRef  = useRef<number>(Date.now());
+  // Snapshot deck counts by turn_number so comparison can display pre-round values
+  const countHistoryRef   = useRef<Record<number, Record<string, { main: number; side: number }>>>({});
 
   const roundData   = gameState?.round_data ?? {};
   const isTieActive = !!(roundData.is_tie);
@@ -55,6 +57,19 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
 
   const myCurrentTopCard = myHand?.top_card ?? null;
   const myCardToShow     = (isPicking || showResult) ? myPlayedCard : myCurrentTopCard;
+
+  // ── Snapshot deck counts before each round resolves ─────────────────────────
+  // Stored under the CURRENT turn_number so showResult can look up turn_number-1
+  // to get the pre-round counts (avoiding early side-deck increment during comparison).
+  // This effect intentionally runs before the round-result effect below.
+  useEffect(() => {
+    if (showResult || !gameState) return;
+    const snap: Record<string, { main: number; side: number }> = {};
+    for (const p of allPlayers) snap[p.player_id] = { main: p.main_count, side: p.side_count };
+    countHistoryRef.current[gameState.turn_number] = snap;
+  // allPlayers is derived — include it so counts stay fresh between turns
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showResult, gameState?.turn_number, opponents, myHand]);
 
   // ── Turn changes ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -159,6 +174,15 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     pickStat(statId);
   }
 
+  // During comparison, show counts from the turn BEFORE the round resolved.
+  // After comparison ends, actual counts are shown and DeckPile animates the change.
+  const preRoundSnap = showResult
+    ? (countHistoryRef.current[(gameState?.turn_number ?? 0) - 1] ?? null)
+    : null;
+  function displayCount(playerId: string, type: "main" | "side", actual: number): number {
+    return preRoundSnap ? (preRoundSnap[playerId]?.[type] ?? actual) : actual;
+  }
+
   const winnerName      = allPlayers.find(p => p.player_id === gameWinnerId)?.room_username ?? "CPU";
   const calledStatDef   = statDefs.find(s => s.id === calledStatId);
   const currentTurnName = allPlayers.find(p => p.player_id === gameState?.current_turn_player_id)?.room_username ?? "?";
@@ -214,8 +238,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
               <div key={opp.player_id} className="game-player-cluster">
                 {/* Left: deck piles */}
                 <div className="game-stack-piles">
-                  <DeckPile count={opp.main_count} label="Main" width={48} height={66} />
-                  <DeckPile count={opp.side_count} label="Side" width={48} height={66} />
+                  <DeckPile count={displayCount(opp.player_id, "main", opp.main_count)} label="Main" width={48} height={66} />
+                  <DeckPile count={displayCount(opp.player_id, "side", opp.side_count)} label="Side" width={48} height={66} />
                 </div>
 
                 {/* Center: card */}
@@ -355,8 +379,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
         <div className="game-my-half">
           {/* Left: deck piles */}
           <div className="game-stack-piles">
-            <DeckPile count={myHand?.main_count ?? 0} label="Main" width={48} height={66} />
-            <DeckPile count={myHand?.side_count ?? 0} label="Side" width={48} height={66} />
+            <DeckPile count={myHand ? displayCount(myHand.player_id, "main", myHand.main_count) : 0} label="Main" width={48} height={66} />
+            <DeckPile count={myHand ? displayCount(myHand.player_id, "side", myHand.side_count) : 0} label="Side" width={48} height={66} />
           </div>
 
           {/* Center: my card */}
