@@ -22,10 +22,10 @@ export function getDeckCoverUrl(
   coverImageUrl: string | null | undefined,
   slug: string
 ): string | null {
-  // Placeholder or empty — try Supabase Storage (will 404 → CSS pattern fallback in UI)
-  if (!coverImageUrl || coverImageUrl === "pending") {
-    return `${STORAGE_BASE}/deck-covers/${slug}.jpg`;
-  }
+  // No actual image — return null so the CSS pattern fallback renders immediately (no broken img flash)
+  if (!coverImageUrl || coverImageUrl === "pending") return null;
+  // User has uploaded an image to Storage at the conventional path — try that URL
+  // (Only reaches here if dev manually set cover_image_url in the DB)
   // Full URL (external or Storage)
   if (coverImageUrl.startsWith("http")) return coverImageUrl;
   // Relative storage path

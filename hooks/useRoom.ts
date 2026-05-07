@@ -13,7 +13,7 @@ export function useRoom(roomCode: string, myPlayerId: string | null) {
 
   const fetchRoom = useCallback(async (force = false) => {
     const now = Date.now();
-    if (!force && now - lastFetchRef.current < 500) return;
+    if (!force && now - lastFetchRef.current < 200) return;
     lastFetchRef.current = now;
 
     const supabase = createClient();

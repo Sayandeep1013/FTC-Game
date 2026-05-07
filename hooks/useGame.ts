@@ -74,7 +74,7 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
   const fetchAndSet = useCallback(async (force = false) => {
     const now = Date.now();
     // Debounce: skip if we fetched in the last 500ms (broadcast + Postgres Changes both fire)
-    if (!force && now - lastFetchRef.current < 500) return;
+    if (!force && now - lastFetchRef.current < 200) return;
     lastFetchRef.current = now;
     const data = await fetchState(roomCode);
     if (data) { setRaw(data); setLoading(false); }
