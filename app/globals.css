@@ -319,117 +319,142 @@ body {
   transition: width 0.3s ease;
 }
 
-/* ── Game board layout ───────────────────────────────────────────────────────── */
+/* ── Game board — strictly non-scrollable, fills viewport ───────────────── */
 
 .game-layout {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  background: var(--white);
+  max-height: 100dvh;
   overflow: hidden;
+  background: var(--white);
   user-select: none;
 }
 
 .game-topbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-bottom: 2px solid var(--black);
   background: var(--white);
-  flex-shrink: 0;
+  min-height: 36px;
 }
 
-/* Main 3-row grid */
-.game-main-grid {
+/* 3-row body: opp bar / table / my bar */
+.game-body {
   flex: 1;
+  min-height: 0;                 /* critical — lets children shrink */
   display: grid;
   grid-template-rows: auto 1fr auto;
+  gap: 4px;
+  padding: 6px 8px;
   overflow: hidden;
-  padding: 8px 10px;
+}
+
+/* ── Opponent bar (top) ───────────────────────────────────────────────────── */
+.game-opp-bar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2px 0;
+}
+
+.game-opp-section {
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
 }
-
-/* ── Player rows (top = opponent, bottom = me) ───────────────────────────── */
-.game-player-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+.game-opp-section-right {
+  flex-direction: row-reverse;
 }
-.game-player-row-top  { align-items: flex-start; }
-.game-player-row-bottom { align-items: flex-end; }
 
-.game-corner-decks {
+.game-opp-decks {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
-.game-player-info {
+.game-opp-info {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 4px;
+  padding: 2px 0;
 }
 
-.game-corner-timer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 52px;
-}
-
-/* ── Card Table ───────────────────────────────────────────────────────────── */
-.game-table-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* ── Table (center, grows to fill) ──────────────────────────────────────── */
+.game-table-outer {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .game-table {
-  /* grid-template-columns set inline based on opponent count */
+  /* grid-template-columns set inline in GameBoard based on opponent count */
   display: grid;
   width: 100%;
-  max-width: 780px;
+  max-width: 900px;
+  height: 100%;              /* fills the available 1fr */
   border: 3px solid var(--black);
   box-shadow: 6px 6px 0 var(--black);
   background: var(--grey-light);
-  min-height: 0;
+  overflow: hidden;
 }
 
-/* Each card slot */
 .game-table-slot {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 12px 10px;
-  min-height: 200px;
+  padding: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
-/* Center info panel */
-.game-table-center-panel {
+.game-table-center {
   border-left: 2px solid var(--black);
   border-right: 2px solid var(--black);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 8px;
-  gap: 8px;
-  min-height: 200px;
+  padding: 8px 6px;
+  gap: 6px;
+  overflow: hidden;
 }
 
-/* Mobile compact */
-@media (max-height: 600px) {
-  .game-main-grid  { padding: 4px 6px; gap: 4px; }
-  .game-topbar { padding: 3px 8px; font-size: 0.65rem; }
-  .game-table-slot { min-height: 160px; padding: 8px 6px; }
-  .game-table-center-panel { min-height: 160px; }
-  .game-corner-decks { gap: 2px; }
+/* ── My bar (bottom) ────────────────────────────────────────────────────── */
+.game-my-bar {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.game-my-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.game-my-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-my-timer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 48px;
 }
 
 .rotate-prompt { display: none; }

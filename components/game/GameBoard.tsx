@@ -3,14 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSession } from "@/hooks/useSession";
-import { useGame, type CardInfo, type RoundResult } from "@/hooks/useGame";
+import { useGame, type CardInfo, type PlayerHandInfo, type RoundResult } from "@/hooks/useGame";
 import { TableCard } from "./TableCard";
 import { DeckPile } from "./DeckPile";
 import { TimerCircle } from "./TimerCircle";
 import { WinLoseModal } from "./WinLoseModal";
 
 const AI_THINK_MS = 1800;
-// Comparison shows for 5 seconds — enough to read the result clearly
 const COMPARISON_SHOW_MS = 5000;
 
 export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: string }) {
@@ -20,17 +19,17 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     isMyTurn, isEliminated, gameOver, gameWinnerId, pickStat,
   } = useGame(roomCode, session?.playerId ?? null);
 
-  // Cards currently rendered on the table (persisted through comparison phase)
-  const [tableMyCard, setTableMyCard] = useState<CardInfo | null>(null);
-  // All opponents' cards on table: player_id → CardInfo
-  const [tableOppCards, setTableOppCards] = useState<Record<string, CardInfo | null>>({});
-  const [tableCalledStatId, setTableCalledStatId] = useState<string | null>(null);
+  // Comparison state — persists for COMPARISON_SHOW_MS after a round resolves
   const [showResult, setShowResult] = useState(false);
   const [displayedResult, setDisplayedResult] = useState<RoundResult | null>(null);
+  // Revealed card data for each opponent (by player_id) during comparison
+  const [revealedOppCards, setRevealedOppCards] = useState<Record<string, CardInfo | null>>({});
+  const [calledStatId, setCalledStatId] = useState<string | null>(null);
   const [timerKey, setTimerKey] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+  // Winning player in the current comparison (for celebration animation)
+  const [celebratingPlayerId, setCelebratingPlayerId] = useState<string | null>(null);
 
-  // Guard: prevents drawing next card while a comparison is in progress or just picked
   const comparingRef = useRef(false);
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,21 +45,15 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   const playerNameMap: Record<string, string> = {};
   for (const p of allPlayers) playerNameMap[p.player_id] = p.room_username;
 
-  // ── When it's my turn: draw my card to the table ─────────────────────────
+  // ── Detect my turn → start timer ──────────────────────────────────────────
   useEffect(() => {
-    if (isMyTurn && !showResult && !comparingRef.current && myHand?.top_card && gameState?.phase === "stat_selection") {
-      const t = setTimeout(() => {
-        setTableMyCard(myHand.top_card);
-        setTimerKey(k => k + 1);
-        setTimerActive(true);
-      }, 300); // brief delay so table clears visually before new card arrives
-      return () => clearTimeout(t);
-    }
-    if (!isMyTurn) {
+    if (isMyTurn && !showResult && !comparingRef.current) {
+      setTimerKey(k => k + 1);
+      setTimerActive(true);
+    } else {
       setTimerActive(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMyTurn, myHand?.top_card?.id, gameState?.phase, showResult]);
+  }, [isMyTurn, showResult]);
 
   // ── Detect new round result ───────────────────────────────────────────────
   useEffect(() => {
@@ -69,33 +62,34 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     lastTurnRef.current = turn;
 
     setTimerActive(false);
-    comparingRef.current = true; // Block new card draws until comparison ends
+    comparingRef.current = true;
 
-    // Build opp card map from result (safe: allCards always has every card)
-    const newOppCards: Record<string, CardInfo | null> = {};
+    // Build revealed opponent cards from the result
+    const revealed: Record<string, CardInfo | null> = {};
     for (const c of lastResult.cards) {
       if (c.player_id !== session?.playerId) {
-        newOppCards[c.player_id] = allCards[c.card_id] ?? null;
+        revealed[c.player_id] = allCards[c.card_id] ?? null;
       }
     }
-    setTableOppCards(newOppCards);
-    setTableCalledStatId(lastResult.stat_id);
+    setRevealedOppCards(revealed);
+    setCalledStatId(lastResult.stat_id);
     setDisplayedResult(lastResult);
     setShowResult(true);
+    setCelebratingPlayerId(lastResult.winner_id ?? null);
 
     if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
     resultTimeoutRef.current = setTimeout(() => {
       setShowResult(false);
-      setTableMyCard(null);
-      setTableOppCards({});
-      setTableCalledStatId(null);
+      setRevealedOppCards({});
+      setCalledStatId(null);
       setDisplayedResult(null);
-      comparingRef.current = false; // allow next card draw
+      setCelebratingPlayerId(null);
+      comparingRef.current = false;
     }, COMPARISON_SHOW_MS);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.turn_number, lastResult]);
 
-  // ── AI auto-pick ─────────────────────────────────────────────────────────
+  // ── AI auto-pick ──────────────────────────────────────────────────────────
   const currentAiPlayer = (gameState?.phase === "stat_selection" && !showResult)
     ? allPlayers.find(p => p.player_id === gameState.current_turn_player_id && p.is_ai && p.top_card)
     : null;
@@ -119,20 +113,20 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     return () => { if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current); };
   }, [aiPlayerId, aiHasCard, currentTurn, isTieActive, tiedStatId, statDefs, roomCode]);
 
-  // ── Timer expiry (auto-pick) ──────────────────────────────────────────────
+  // ── Timer expiry ──────────────────────────────────────────────────────────
   const handleTimerExpire = useCallback(() => {
     if (!isMyTurn || showResult || comparingRef.current || gameState?.phase !== "stat_selection") return;
     const available = statDefs.filter(s => !isTieActive || !tiedStatId || s.id === tiedStatId);
     if (!available.length) return;
     const stat = available[Math.floor(Math.random() * available.length)];
-    comparingRef.current = true; // prevent duplicate fires
+    comparingRef.current = true;
+    setTimerActive(false);
     pickStat(stat.id);
   }, [isMyTurn, showResult, gameState?.phase, statDefs, isTieActive, tiedStatId, pickStat]);
 
   const winnerName = allPlayers.find(p => p.player_id === gameWinnerId)?.room_username ?? "CPU";
+  const calledStatDef = statDefs.find(s => s.id === calledStatId);
   const currentTurnName = allPlayers.find(p => p.player_id === gameState?.current_turn_player_id)?.room_username ?? "?";
-  const calledStatDef = statDefs.find(s => s.id === tableCalledStatId);
-  const oppCards = Object.entries(tableOppCards); // [player_id, CardInfo|null][]
 
   if (loading || !session) {
     return (
@@ -142,213 +136,222 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  const oppCount = opponents.length;
+
   return (
     <div className="game-layout">
       {gameOver && gameWinnerId && (
         <WinLoseModal won={gameWinnerId === session.playerId} winnerName={winnerName} isSpectating={isEliminated} roomCode={roomCode} />
       )}
 
-      {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      {/* ── TOPBAR ──────────────────────────────────────────────────────── */}
       <div className="game-topbar">
-        <span className="font-display tracking-widest text-sm">{deckName.toUpperCase()}</span>
-        <div className="flex items-center gap-3 flex-wrap">
-          {isTieActive && <span className="text-[9px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">TIE · {potCount} in pot</span>}
-          {isEliminated && <span className="text-[9px] font-bold uppercase tracking-wider bg-grey-light border border-black px-2 py-0.5">SPECTATING</span>}
-          <span className="text-[10px] font-bold uppercase tracking-wider">Round {gameState?.turn_number ?? 1}</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-grey-dark">
+        <span className="font-display tracking-widest" style={{ fontSize: "clamp(0.75rem, 2vw, 1rem)" }}>
+          {deckName.toUpperCase()}
+        </span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          {isTieActive && (
+            <span className="text-[8px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">
+              TIE · {potCount} in pot
+            </span>
+          )}
+          {isEliminated && (
+            <span className="text-[8px] font-bold uppercase tracking-wider bg-grey-light border border-black px-1.5 py-0.5">
+              SPECTATING
+            </span>
+          )}
+          <span className="text-[9px] font-bold uppercase tracking-wider">Round {gameState?.turn_number ?? 1}</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">
             {showResult ? "Comparing..." : isMyTurn ? "Your turn" : `${currentTurnName}'s turn`}
           </span>
         </div>
       </div>
 
-      {/* ── Main grid ───────────────────────────────────────────────────── */}
-      <div className="game-main-grid">
+      {/* ── BODY ────────────────────────────────────────────────────────── */}
+      <div className="game-body">
 
-        {/* ═══ OPPONENT ROW ═══ */}
-        <div className="game-player-row game-player-row-top">
-          {/* Deck piles for first opponent (top-left) */}
-          <div className="game-corner-decks">
-            {opponents[0] && (
-              <>
-                <DeckPile count={opponents[0].main_count} label="Main" width={44} height={60} />
-                <DeckPile count={opponents[0].side_count} label="Side" width={44} height={60} />
-              </>
-            )}
-          </div>
-
-          {/* Opponent names row */}
-          <div className="game-player-info">
-            <div className="flex items-center gap-3 flex-wrap">
-              {!isMyTurn && !showResult && <BouncingArrow direction="down" />}
-              {opponents.map(opp => (
-                <div key={opp.player_id} className="flex items-center gap-1">
-                  <span className="text-xs font-bold uppercase tracking-wider">{opp.room_username}</span>
-                  {opp.is_ai && <span className="text-[8px] bg-grey-light border border-black px-1">CPU</span>}
-                  {opp.is_eliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
-                </div>
-              ))}
-              {!isMyTurn && !showResult && opponents.some(o => o.is_ai) && (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[8px] text-grey-mid uppercase tracking-wider">thinking</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Extra deck piles for 3-4 players — top-right */}
-          <div className="game-corner-decks" style={{ alignItems: "flex-end" }}>
-            {opponents.length > 1 && opponents[1] && (
-              <>
-                <DeckPile count={opponents[1].main_count} label="Main" width={44} height={60} />
-                <DeckPile count={opponents[1].side_count} label="Side" width={44} height={60} />
-              </>
-            )}
-          </div>
+        {/* ══ OPPONENT SECTIONS (top) ════════════════════════════════════ */}
+        <div className="game-opp-bar">
+          {opponents.map((opp, i) => (
+            <OppSection
+              key={opp.player_id}
+              opp={opp}
+              isActive={gameState?.current_turn_player_id === opp.player_id && !showResult}
+              showThinking={!isMyTurn && !showResult && gameState?.current_turn_player_id === opp.player_id && opp.is_ai}
+              align={oppCount === 1 ? "center" : i === 0 ? "left" : "right"}
+            />
+          ))}
         </div>
 
-        {/* ═══ CARD TABLE ═══ */}
-        <div className="game-table-wrapper">
-          <div className="game-table" style={{ gridTemplateColumns: opponents.length > 1 ? `repeat(${opponents.length}, 1fr) 140px 1fr` : "1fr 140px 1fr" }}>
+        {/* ══ TABLE ═════════════════════════════════════════════════════ */}
+        <div className="game-table-outer">
+          <div className="game-table" style={{
+            gridTemplateColumns: `repeat(${oppCount}, 1fr) clamp(100px, 14vw, 150px) 1fr`
+          }}>
 
-            {/* Opponent card slots — one per opponent */}
-            {opponents.map((opp, i) => {
-              const oppCardData = showResult ? tableOppCards[opp.player_id] : null;
-              const isOppTurn = gameState?.current_turn_player_id === opp.player_id;
+            {/* One slot per opponent — card always face-down, flips to face-up during comparison */}
+            {opponents.map(opp => {
+              const isRevealed = showResult && !!revealedOppCards[opp.player_id];
+              const isWinner = celebratingPlayerId === opp.player_id;
+              const cardToShow = isRevealed
+                ? revealedOppCards[opp.player_id]
+                : (opp.top_card ?? null);
 
               return (
-                <div key={opp.player_id} className="game-table-slot" style={{ borderRight: i < opponents.length - 1 ? "1px solid #e0e0da" : undefined }}>
-                  <AnimatePresence>
-                    {showResult && oppCardData ? (
+                <div key={opp.player_id} className="game-table-slot">
+                  {cardToShow ? (
+                    <motion.div
+                      className="w-full h-full"
+                      animate={isWinner && showResult
+                        ? { scale: [1, 1.06, 1.02, 1], transition: { delay: 0.6, duration: 0.5 } }
+                        : { scale: 1 }}
+                    >
                       <TableCard
-                        key={`opp-${opp.player_id}-${gameState?.turn_number}`}
-                        card={oppCardData}
+                        card={cardToShow}
                         statDefs={statDefs}
-                        highlightStatId={tableCalledStatId}
+                        faceDown={!isRevealed}
+                        highlightStatId={isRevealed ? calledStatId : undefined}
                         enterFrom="top"
-                        label={opp.room_username}
+                        label={opp.room_username + (opp.is_ai ? " [CPU]" : "")}
                       />
-                    ) : !showResult && isOppTurn && opp.top_card && !opp.is_eliminated ? (
-                      /* Face-down while opponent picks */
-                      <motion.div
-                        key={`opp-facedown-${opp.player_id}`}
-                        initial={{ y: -28, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ opacity: 0, scale: 0.85 }}
-                        transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                        className="flex flex-col items-center gap-1.5"
-                      >
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{opp.room_username}</p>
-                        <div className="card-back-pattern border-2 border-black" style={{ width: 170, height: 250, boxShadow: "4px 4px 0 #0a0a0a" }} />
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
+                    </motion.div>
+                  ) : (
+                    <EmptySlot label={opp.room_username} />
+                  )}
                 </div>
               );
             })}
 
-            {/* Center panel: stat info + comparison scores */}
-            <div className="game-table-center-panel" style={{ borderLeft: "2px solid #0a0a0a", borderRight: "2px solid #0a0a0a" }}>
+            {/* CENTER panel */}
+            <div className="game-table-center">
               {showResult && calledStatDef ? (
-                <div className="flex flex-col items-center gap-2 w-full">
-                  <div className="w-full text-center border-2 border-black bg-black py-2 px-2">
-                    <p className="text-[8px] text-grey-mid uppercase tracking-widest">Stat Called</p>
-                    <p className="font-display text-white text-base tracking-wider">{calledStatDef.display_name}</p>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center gap-2 w-full"
+                >
+                  <div className="w-full text-center bg-black border-2 border-black py-1.5 px-1">
+                    <p className="text-[7px] text-grey-mid uppercase tracking-widest">Called</p>
+                    <p className="font-display text-white tracking-wider" style={{ fontSize: "clamp(0.75rem, 2vw, 1.1rem)" }}>
+                      {calledStatDef.display_name}
+                    </p>
                   </div>
                   <div className="w-full flex flex-col gap-1">
-                    {displayedResult?.cards.map(c => {
-                      const isMe = c.player_id === session.playerId;
-                      const name = isMe ? "You" : (playerNameMap[c.player_id] ?? "?");
-                      return (
-                        <div key={c.player_id} className={`flex items-center justify-between px-2 py-1.5 border-2 ${c.is_winner ? "border-black bg-black" : "border-grey-light"}`}>
-                          <span className={`text-[8px] font-bold uppercase tracking-wider truncate ${c.is_winner ? "text-white" : "text-grey-dark"}`}>
-                            {name}{c.is_winner ? " ✓" : ""}
-                          </span>
-                          <span className={`font-mono font-bold text-sm ml-1 ${c.is_winner ? "text-white" : "text-black"}`}>{c.value}</span>
-                        </div>
-                      );
-                    })}
+                    {displayedResult?.cards
+                      .slice()
+                      .sort((a, b) => (b.is_winner ? 1 : 0) - (a.is_winner ? 1 : 0))
+                      .map(c => {
+                        const isMe = c.player_id === session.playerId;
+                        const name = isMe ? "You" : (playerNameMap[c.player_id] ?? "?");
+                        return (
+                          <motion.div
+                            key={c.player_id}
+                            initial={{ x: -8, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: displayedResult.cards.indexOf(c) * 0.1 }}
+                            className={`flex items-center justify-between px-1.5 py-1 border-2 ${c.is_winner ? "border-black bg-black" : "border-grey-light bg-white"}`}
+                          >
+                            <span className={`font-bold truncate text-[8px] uppercase tracking-wide ${c.is_winner ? "text-white" : "text-grey-dark"}`}>
+                              {name}{c.is_winner ? " ✓" : ""}
+                            </span>
+                            <span className={`font-mono font-bold text-sm ml-1 flex-shrink-0 ${c.is_winner ? "text-white" : "text-black"}`}>
+                              {c.value}
+                            </span>
+                          </motion.div>
+                        );
+                      })}
                   </div>
                   {displayedResult && (
-                    <p className="text-[8px] font-bold uppercase tracking-wider text-grey-dark text-center leading-tight">
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                      className="text-[8px] font-bold uppercase tracking-wider text-grey-dark text-center"
+                    >
                       {displayedResult.was_tie
-                        ? `Tie — pot ${potCount + displayedResult.cards.length}`
-                        : displayedResult.winner_id === session.playerId ? "You win!" : `${playerNameMap[displayedResult.winner_id ?? ""] ?? "?"} wins`}
-                    </p>
+                        ? `Tie — ${potCount + displayedResult.cards.length} in pot`
+                        : celebratingPlayerId === session.playerId ? "You win!" : `${playerNameMap[celebratingPlayerId ?? ""] ?? "?"} wins`}
+                    </motion.p>
                   )}
-                </div>
+                </motion.div>
               ) : (
-                <div className="text-center opacity-20 select-none">
-                  <p className="font-display text-3xl">vs</p>
-                </div>
+                <span className="font-display text-grey-mid select-none" style={{ fontSize: "clamp(1.2rem, 3vw, 2rem)" }}>vs</span>
               )}
             </div>
 
-            {/* My card slot */}
+            {/* MY slot — always visible, interactive when it's my turn */}
             <div className="game-table-slot">
-              <AnimatePresence>
-                {tableMyCard && (
+              {myHand?.top_card ? (
+                <motion.div
+                  className="w-full h-full"
+                  animate={celebratingPlayerId === session.playerId && showResult
+                    ? { scale: [1, 1.06, 1.02, 1], transition: { delay: 0.6, duration: 0.5 } }
+                    : { scale: 1 }}
+                >
                   <TableCard
-                    key={`my-${tableMyCard.id}`}
-                    card={tableMyCard}
+                    card={myHand.top_card}
                     statDefs={statDefs}
-                    isActive={isMyTurn && !showResult}
-                    onPickStat={isMyTurn && !showResult ? (statId) => {
-                      comparingRef.current = true; // guard immediately
+                    isActive={isMyTurn && !showResult && !isEliminated}
+                    onPickStat={isMyTurn && !showResult && !isEliminated ? (statId) => {
+                      comparingRef.current = true;
                       setTimerActive(false);
                       pickStat(statId);
                     } : undefined}
-                    highlightStatId={showResult ? tableCalledStatId : undefined}
-                    lockedStatId={isTieActive ? tiedStatId : null}
-                    enterFrom="bottom"
+                    highlightStatId={showResult ? calledStatId : undefined}
+                    lockedStatId={isTieActive && !showResult ? tiedStatId : null}
+                    faceDown={false}
                     label="You"
+                    enterFrom="none"
                   />
-                )}
-              </AnimatePresence>
+                </motion.div>
+              ) : myHand && !myHand.is_eliminated ? (
+                <EmptySlot label="You" />
+              ) : null}
             </div>
 
           </div>
 
-          {isMyTurn && !showResult && tableMyCard && !isEliminated && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center text-[9px] font-bold uppercase tracking-widest text-grey-dark mt-2"
-            >
-              {isTieActive && tiedStatId ? "Locked — tap the highlighted stat" : "Tap a stat on your card to call it"}
-            </motion.p>
-          )}
+          {/* Prompt below table */}
+          <AnimatePresence>
+            {isMyTurn && !showResult && myHand?.top_card && !isEliminated && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-center text-[8px] font-bold uppercase tracking-widest text-grey-dark mt-1"
+              >
+                {isTieActive && tiedStatId ? "Tap the highlighted stat" : "Tap a stat on your card to call it →"}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* ═══ MY ROW ═══ */}
-        <div className="game-player-row game-player-row-bottom">
-          <div className="game-corner-decks">
-            {myHand && (
-              <>
-                <DeckPile count={myHand.main_count} label="Main" width={44} height={60} />
-                <DeckPile count={myHand.side_count} label="Side" width={44} height={60} />
-              </>
-            )}
+        {/* ══ MY SECTION (bottom) ═══════════════════════════════════════ */}
+        <div className="game-my-bar">
+          <div className="game-my-decks">
+            <DeckPile count={myHand?.main_count ?? 0} label="Main" width={40} height={56} />
+            <DeckPile count={myHand?.side_count ?? 0} label="Side" width={40} height={56} />
           </div>
 
-          <div className="game-player-info">
+          <div className="game-my-info">
             <div className="flex items-center gap-2">
-              {isMyTurn && !showResult && <BouncingArrow direction="up" />}
+              {isMyTurn && !showResult && <BouncingArrow />}
               <span className="text-xs font-bold uppercase tracking-wider">You</span>
               {isEliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
             </div>
           </div>
 
-          <div className="game-corner-timer">
+          <div className="game-my-timer">
             <AnimatePresence>
               {isMyTurn && !showResult && !isEliminated && (
-                <motion.div key={timerKey} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-                  <TimerCircle
-                    active={timerActive}
-                    onExpire={handleTimerExpire}
-                    size={48}
-                  />
+                <motion.div
+                  key={timerKey}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TimerCircle active={timerActive} onExpire={handleTimerExpire} size={44} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -360,13 +363,61 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
   );
 }
 
-function BouncingArrow({ direction }: { direction: "up" | "down" }) {
+// ─── Sub-components ────────────────────────────────────────────────────────────
+
+function OppSection({ opp, isActive, showThinking, align }: {
+  opp: PlayerHandInfo;
+  isActive: boolean;
+  showThinking: boolean;
+  align: "left" | "center" | "right";
+}) {
+  return (
+    <div className={`game-opp-section ${align === "right" ? "game-opp-section-right" : ""}`}>
+      {/* Deck piles */}
+      <div className="game-opp-decks">
+        <DeckPile count={opp.main_count} label="Main" width={40} height={56} />
+        <DeckPile count={opp.side_count} label="Side" width={40} height={56} />
+      </div>
+
+      {/* Info */}
+      <div className="game-opp-info">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {isActive && <BouncingArrow down />}
+          <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[120px]">{opp.room_username}</span>
+          {opp.is_ai && <span className="text-[7px] font-bold border border-black px-1 uppercase">CPU</span>}
+          {opp.is_eliminated && <span className="text-[8px] text-grey-mid">OUT</span>}
+        </div>
+        {showThinking && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-1 mt-0.5"
+          >
+            <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <span className="text-[7px] text-grey-mid uppercase tracking-wider">thinking</span>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptySlot({ label }: { label: string }) {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-2 opacity-25">
+      <div className="border-2 border-dashed border-grey-mid" style={{ width: "60%", aspectRatio: "170/250" }} />
+      <span className="text-[8px] font-bold uppercase tracking-wider text-grey-mid">{label}</span>
+    </div>
+  );
+}
+
+function BouncingArrow({ down }: { down?: boolean }) {
   return (
     <motion.svg
-      width={20} height={20} viewBox="0 0 20 20" fill="none"
-      animate={{ y: direction === "up" ? [0, -4, 0] : [0, 4, 0] }}
+      width={16} height={16} viewBox="0 0 20 20" fill="none"
+      animate={{ y: down ? [0, 4, 0] : [0, -4, 0] }}
       transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
-      style={{ transform: direction === "down" ? "rotate(180deg)" : undefined, flexShrink: 0 }}
+      style={{ transform: down ? "rotate(180deg)" : undefined, flexShrink: 0 }}
     >
       <path d="M10 17 L2 7 L7 7 L7 3 L13 3 L13 7 L18 7 Z" fill="#0a0a0a" />
     </motion.svg>

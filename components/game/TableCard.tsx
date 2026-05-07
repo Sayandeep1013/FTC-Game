@@ -1,49 +1,42 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { CardInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
-import { useRef } from "react";
-import { useMotionValue, useSpring, useTransform } from "framer-motion";
-
-const CARD_W = 170;
-const CARD_H = 250;
+import { useEffect, useRef, useState } from "react";
 
 interface TableCardProps {
   card: CardInfo;
   statDefs: StatDefinition[];
-  /** Player is active — stats are clickable */
   isActive?: boolean;
   onPickStat?: (statId: string) => void;
-  /** Stat to highlight (comparison phase) */
   highlightStatId?: string | null;
-  /** If locked (non-caller tie), only this stat can be picked */
   lockedStatId?: string | null;
-  /** Show card back (opponent's card before reveal) */
+  /** Show card back (flips to front when changed to false) */
   faceDown?: boolean;
-  /** Initial animation — card slides in from direction */
-  enterFrom?: "top" | "bottom";
   label?: string;
+  enterFrom?: "top" | "bottom" | "none";
 }
 
 export function TableCard({
   card, statDefs, isActive, onPickStat,
   highlightStatId, lockedStatId, faceDown = false,
-  enterFrom = "bottom", label,
+  label, enterFrom = "none",
 }: TableCardProps) {
+  // Track flip state separately so we can animate the transition
+  const [flipped, setFlipped] = useState(faceDown);
+  useEffect(() => { setFlipped(faceDown); }, [faceDown]);
+
   const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
   const sorted = [...statDefs].sort((a, b) => a.display_order - b.display_order);
-  const left = sorted.filter((_, i) => i % 2 === 0);
-  const right = sorted.filter((_, i) => i % 2 === 1);
 
-  // Tilt effect on active card
+  // Tilt on mouse move (active card only)
   const cardRef = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const rx = useSpring(useTransform(my, [-1, 1], [8, -8]), { stiffness: 400, damping: 30 });
   const ry = useSpring(useTransform(mx, [-1, 1], [-8, 8]), { stiffness: 400, damping: 30 });
-
   function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!isActive || !cardRef.current) return;
     const r = cardRef.current.getBoundingClientRect();
@@ -52,87 +45,122 @@ export function TableCard({
   }
   function onMouseLeave() { mx.set(0); my.set(0); }
 
+  const enterY = enterFrom === "top" ? -30 : enterFrom === "bottom" ? 30 : 0;
+
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1 w-full h-full">
       {label && (
-        <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{label}</p>
+        <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark flex-shrink-0">{label}</p>
       )}
 
-      {/* Wrapper handles enter animation */}
+      {/* Flip container */}
       <motion.div
-        initial={{ y: enterFrom === "bottom" ? 40 : -40, opacity: 0, scale: 0.9 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.25 } }}
-        transition={{ type: "spring", stiffness: 340, damping: 28 }}
-        style={{ width: CARD_W, height: CARD_H, perspective: 800 }}
+        initial={{ y: enterFrom !== "none" ? enterY : 0, opacity: enterFrom !== "none" ? 0 : 1 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ scale: 0.7, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 26 }}
+        style={{ perspective: 900, width: "100%", flex: 1, minHeight: 0 }}
       >
-        {faceDown ? (
-          // Face-down: card back only
-          <div
-            className="card-back-pattern border-2 border-black w-full h-full"
-            style={{ boxShadow: "4px 4px 0 #0a0a0a" }}
-          />
-        ) : (
-          // Face-up: full card
+        <motion.div
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          initial={{ rotateY: faceDown ? 180 : 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ transformStyle: "preserve-3d", width: "100%", height: "100%", position: "relative" }}
+        >
+          {/* FRONT — card face */}
           <motion.div
             ref={cardRef}
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
-            className={`border-2 border-black bg-white overflow-hidden w-full h-full flex flex-col ${isActive ? "card-active" : ""}`}
             style={{
-              boxShadow: isActive ? "6px 6px 0 #0a0a0a" : "4px 4px 0 #0a0a0a",
+              backfaceVisibility: "hidden",
+              width: "100%", height: "100%",
               rotateX: isActive ? rx : 0,
               rotateY: isActive ? ry : 0,
             }}
+            className={`border-2 border-black bg-white flex flex-col overflow-hidden ${isActive ? "card-active" : ""}`}
+            animate={isActive ? { boxShadow: "6px 6px 0px #0a0a0a" } : { boxShadow: "3px 3px 0px #0a0a0a" }}
           >
-            {/* Image */}
-            <div className="border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden flex-shrink-0" style={{ height: 80 }}>
+            {/* Image area */}
+            <div className="border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden flex-shrink-0" style={{ height: "28%" }}>
               {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={imageUrl} alt={card.name} className="w-full h-full object-contain p-1" />
               ) : (
-                <span className="font-display text-3xl text-grey-dark">{card.name[0]?.toUpperCase()}</span>
+                <span className="font-display text-grey-dark" style={{ fontSize: "clamp(1.2rem, 3vw, 2rem)" }}>
+                  {card.name[0]?.toUpperCase()}
+                </span>
               )}
             </div>
 
-            {/* Name */}
+            {/* Name strip */}
             <div className="bg-black px-2 py-1 border-b-2 border-black flex-shrink-0">
-              <p className="font-display text-white leading-tight text-xs truncate">{card.name.toUpperCase()}</p>
+              <p className="font-display text-white leading-tight truncate" style={{ fontSize: "clamp(0.6rem, 1.5vw, 0.85rem)" }}>
+                {card.name.toUpperCase()}
+              </p>
             </div>
 
-            {/* Stats — 2 columns, fills remaining space */}
-            <div className="flex flex-1 overflow-hidden">
-              <div className="flex-1 border-r border-black flex flex-col">
-                {left.map(stat => <StatRow key={stat.id} stat={stat} value={card.stats[stat.name]} isHighlighted={highlightStatId === stat.id} isLocked={!!(lockedStatId && lockedStatId !== stat.id)} isActive={!!isActive} onPick={onPickStat} />)}
-              </div>
-              <div className="flex-1 flex flex-col">
-                {right.map(stat => <StatRow key={stat.id} stat={stat} value={card.stats[stat.name]} isHighlighted={highlightStatId === stat.id} isLocked={!!(lockedStatId && lockedStatId !== stat.id)} isActive={!!isActive} onPick={onPickStat} />)}
-              </div>
+            {/* Stats — all 8 in a single column to prevent overflow */}
+            <div className="flex flex-col flex-1 overflow-hidden divide-y divide-grey-light">
+              {sorted.map(stat => (
+                <StatRow
+                  key={stat.id}
+                  stat={stat}
+                  value={card.stats[stat.name]}
+                  isHighlighted={highlightStatId === stat.id}
+                  isLocked={!!(lockedStatId && lockedStatId !== stat.id)}
+                  isActive={!!isActive}
+                  onPick={onPickStat}
+                />
+              ))}
             </div>
           </motion.div>
-        )}
+
+          {/* BACK — card pattern */}
+          <div
+            style={{
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+              position: "absolute",
+              inset: 0,
+              boxShadow: "3px 3px 0px #0a0a0a",
+            }}
+            className="card-back-pattern border-2 border-black"
+          />
+        </motion.div>
       </motion.div>
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StatRow({ stat, value, isHighlighted, isLocked, isActive, onPick }: {
   stat: StatDefinition; value: number | undefined;
   isHighlighted: boolean; isLocked: boolean; isActive: boolean;
   onPick?: (id: string) => void;
 }) {
+  const [clicked, setClicked] = useState(false);
   const canClick = isActive && !!onPick && !isHighlighted && !isLocked;
 
+  function handleClick() {
+    if (!canClick) return;
+    setClicked(true);
+    setTimeout(() => setClicked(false), 250);
+    onPick!(stat.id);
+  }
+
   return (
-    <div
-      className={`stat-row flex-1 ${isHighlighted ? "selected" : ""} ${isLocked ? "opacity-30 cursor-not-allowed" : ""}`}
+    <motion.div
+      className={`stat-row flex-1 min-h-0 ${isHighlighted ? "selected" : ""} ${isLocked ? "opacity-30" : ""}`}
       style={{ cursor: canClick ? "pointer" : "default" }}
-      onClick={() => canClick && onPick!(stat.id)}
+      onClick={handleClick}
+      animate={clicked ? { scale: [1, 0.93, 1.04, 1] } : { scale: 1 }}
+      transition={{ duration: 0.25 }}
+      whileHover={canClick ? { backgroundColor: "#0a0a0a", color: "#f5f5f0" } : {}}
     >
-      <span className="stat-label">{stat.display_name}</span>
-      <span className="stat-value font-mono">{value ?? "—"}</span>
-    </div>
+      <span className="stat-label truncate" style={{ fontSize: "clamp(0.5rem, 1vw, 0.65rem)" }}>{stat.display_name}</span>
+      <span className="stat-value font-mono" style={{ fontSize: "clamp(0.6rem, 1.2vw, 0.85rem)" }}>{value ?? "—"}</span>
+    </motion.div>
   );
 }
-
-export { CARD_W as TABLE_CARD_W, CARD_H as TABLE_CARD_H };
