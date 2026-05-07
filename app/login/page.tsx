@@ -1,5 +1,5 @@
 import { signInWithGoogle } from "@/lib/auth/actions";
-import Link from "next/link";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function LoginPage() {
   return (
@@ -37,12 +37,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 pt-4 border-t-2 border-grey-light text-center">
-          <Link
-            href="/"
-            className="text-xs uppercase tracking-wider text-grey-dark hover:text-black transition-colors font-bold"
-          >
-            ← Back to game
-          </Link>
+          <BackButton fallback="/" />
         </div>
       </div>
     </main>

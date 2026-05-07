@@ -5,17 +5,18 @@ import { useState } from "react";
 import type { Deck } from "@/types";
 import { DeckDetailsModal } from "./DeckDetailsModal";
 import { DeckCoverArt } from "./DeckCoverArt";
+import { RoomModal } from "@/components/room/RoomModal";
 
 interface DeckCarouselProps {
   decks: Deck[];
 }
 
-// Width increased, height proportional: ~1:1.35 ratio feels right for deck cards
 const CARD_W = 310;
 const CARD_H = 430;
 
 export function DeckCarousel({ decks }: DeckCarouselProps) {
   const [detailDeck, setDetailDeck] = useState<Deck | null>(null);
+  const [playDeck, setPlayDeck] = useState<Deck | null>(null);
 
   return (
     <>
@@ -35,6 +36,7 @@ export function DeckCarousel({ decks }: DeckCarouselProps) {
               deck={deck}
               index={i}
               onShowDetails={() => setDetailDeck(deck)}
+              onPlay={() => setPlayDeck(deck)}
             />
           ))}
         </div>
@@ -42,6 +44,9 @@ export function DeckCarousel({ decks }: DeckCarouselProps) {
 
       {detailDeck && (
         <DeckDetailsModal deck={detailDeck} onClose={() => setDetailDeck(null)} />
+      )}
+      {playDeck && (
+        <RoomModal deck={playDeck} onClose={() => setPlayDeck(null)} />
       )}
     </>
   );
@@ -51,10 +56,12 @@ function DeckCard({
   deck,
   index,
   onShowDetails,
+  onPlay,
 }: {
   deck: Deck;
   index: number;
   onShowDetails: () => void;
+  onPlay: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -125,8 +132,8 @@ function DeckCard({
               Details
             </button>
             <button
-              onClick={(e) => e.stopPropagation()}
               className="deck-btn-dark flex-1 py-3 text-[11px] font-bold uppercase tracking-wider"
+              onClick={(e) => { e.stopPropagation(); onPlay(); }}
             >
               Play →
             </button>
