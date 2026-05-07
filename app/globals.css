@@ -538,3 +538,37 @@ body {
   max-width: 110px;
   flex-shrink: 0;
 }
+
+/*
+ * Responsive card container — fluid sizing via clamp().
+ * Cards never overflow their half; they scale down on smaller screens.
+ * Formula: (viewport_height - header - topbar - center_strip - gaps) / 2 = per_half_height
+ * Leave 15% for labels, piles, padding.
+ *
+ * clamp(min, ideal, max) for width and height independently.
+ */
+.game-card-wrap {
+  /* Height: 85% of each half. Half ≈ (dvh - 56px header - 38px topbar - 88px center - 36px gaps) / 2 */
+  height: clamp(170px, calc((100dvh - 218px) * 0.5 * 0.85), 260px);
+  /* Width: maintain ~0.7 aspect ratio. At max height 260px → max width 182px */
+  width:  clamp(130px, calc((100dvh - 218px) * 0.5 * 0.85 * 0.70), 182px);
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Wider screens where height isn't the limiting factor */
+@media (min-width: 1400px) {
+  .game-card-wrap {
+    height: min(260px, calc((100dvh - 218px) * 0.5 * 0.85));
+    width:  min(182px, calc((100dvh - 218px) * 0.5 * 0.85 * 0.70));
+  }
+}
+
+/* Compact on very short screens (laptops, small monitors) */
+@media (max-height: 700px) {
+  .game-body-v2     { padding: 6px 14px; gap: 5px; }
+  .game-center-strip { min-height: 72px; padding: 6px 14px; }
+  .game-opp-half    { gap: 18px; }
+  .game-my-half     { gap: 18px; }
+  .game-player-cluster { gap: 10px; }
+}

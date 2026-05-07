@@ -190,22 +190,25 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                 </div>
 
                 {/* Center: card */}
-                <motion.div
-                  animate={isWinner && showResult
-                    ? { scale: [1, 1.05, 1.02, 1], transition: { delay: 0.7, duration: 0.5 } }
-                    : { scale: 1 }}
-                >
-                  {cardToShow ? (
-                    <TableCard
-                      card={cardToShow}
-                      statDefs={statDefs}
-                      faceDown={!isRevealed}
-                      highlightStatId={isRevealed ? calledStatId : undefined}
-                      enterFrom="top"
-                      label={opp.room_username + (opp.is_ai ? " [CPU]" : "")}
-                    />
-                  ) : <GhostCard label={opp.room_username} />}
-                </motion.div>
+                <div className="game-card-wrap">
+                  <motion.div
+                    className="w-full h-full"
+                    animate={isWinner && showResult
+                      ? { scale: [1, 1.04, 1.01, 1], transition: { delay: 0.7, duration: 0.5 } }
+                      : { scale: 1 }}
+                  >
+                    {cardToShow ? (
+                      <TableCard
+                        card={cardToShow}
+                        statDefs={statDefs}
+                        faceDown={!isRevealed}
+                        highlightStatId={isRevealed ? calledStatId : undefined}
+                        enterFrom="top"
+                        label={opp.room_username + (opp.is_ai ? " [CPU]" : "")}
+                      />
+                    ) : <GhostCard label={opp.room_username} />}
+                  </motion.div>
+                </div>
 
                 {/* Right: player info */}
                 <div className="game-player-labels">
@@ -321,27 +324,30 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
           </div>
 
           {/* Center: my card */}
-          <motion.div
-            animate={celebWinnerId === session.playerId && showResult
-              ? { scale: [1, 1.05, 1.02, 1], transition: { delay: 0.7, duration: 0.5 } }
-              : { scale: 1 }}
-          >
-            {myCardToShow ? (
-              <TableCard
-                card={myCardToShow}
-                statDefs={statDefs}
-                isActive={isMyTurn && !showResult && !isEliminated}
-                onPickStat={isMyTurn && !showResult && !isEliminated ? handlePickStat : undefined}
-                highlightStatId={showResult ? calledStatId : undefined}
-                lockedStatId={isTieActive && !showResult ? tiedStatId : null}
-                faceDown={false}
-                label="You"
-                enterFrom="none"
-              />
-            ) : (
-              myHand && !myHand.is_eliminated ? <GhostCard label="You" /> : null
-            )}
-          </motion.div>
+          <div className="game-card-wrap">
+            <motion.div
+              className="w-full h-full"
+              animate={celebWinnerId === session.playerId && showResult
+                ? { scale: [1, 1.04, 1.01, 1], transition: { delay: 0.7, duration: 0.5 } }
+                : { scale: 1 }}
+            >
+              {myCardToShow ? (
+                <TableCard
+                  card={myCardToShow}
+                  statDefs={statDefs}
+                  isActive={isMyTurn && !showResult && !isEliminated}
+                  onPickStat={isMyTurn && !showResult && !isEliminated ? handlePickStat : undefined}
+                  highlightStatId={showResult ? calledStatId : undefined}
+                  lockedStatId={isTieActive && !showResult ? tiedStatId : null}
+                  faceDown={false}
+                  label="You"
+                  enterFrom="none"
+                />
+              ) : (
+                myHand && !myHand.is_eliminated ? <GhostCard label="You" /> : null
+              )}
+            </motion.div>
+          </div>
 
           {/* Right: my info */}
           <div className="game-player-labels">
@@ -386,12 +392,9 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
 
 function GhostCard({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center gap-1" style={{ flexShrink: 0 }}>
-      {label && <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{label}</p>}
-      <div
-        className="border-2 border-dashed border-grey-mid bg-grey-light flex items-center justify-center"
-        style={{ width: 190, height: 280, opacity: 0.3 }}
-      />
+    <div className="flex flex-col items-center w-full h-full">
+      {label && <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark mb-1 flex-shrink-0">{label}</p>}
+      <div className="flex-1 w-full border-2 border-dashed border-grey-mid bg-grey-light opacity-25" />
     </div>
   );
 }
