@@ -38,15 +38,13 @@ export function BuyMeCoffee() {
               Built solo, for fun. If you enjoy it — a coffee helps keep it running.
             </p>
 
-            {/* UPI QR placeholder */}
+            {/* UPI QR */}
             <div
-              className="w-full aspect-square border-2 border-black bg-grey-light flex items-center justify-center mb-4"
+              className="w-full border-2 border-black overflow-hidden mb-4"
               style={{ boxShadow: "3px 3px 0px #0a0a0a" }}
             >
-              <p className="text-xs text-grey-dark text-center px-6 leading-relaxed">
-                Drop your UPI QR image here.<br />
-                <span className="font-mono font-bold text-black">Replace this placeholder.</span>
-              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/upi-qr.jpeg" alt="UPI QR Code" className="w-full h-auto block" />
             </div>
 
             <p className="text-[10px] text-grey-mid text-center uppercase tracking-[0.2em]">

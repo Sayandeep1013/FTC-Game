@@ -1,0 +1,495 @@
+"use client";
+
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { getCardImageUrl } from "@/lib/utils/imageUrl";
+
+interface StatDef { id: string; name: string; display_name: string; is_inverse: boolean; display_order: number; }
+interface CardStat { stat_definition_id: string; value: number; }
+interface AdminCard { id: string; name: string; image_url: string | null; image_storage_path: string | null; card_stats: CardStat[]; }
+
+export default function DeckEditorPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const [deckId, setDeckId] = useState<string>("");
+  const [deckName, setDeckName] = useState("");
+  const [stats, setStats] = useState<StatDef[]>([]);
+  const [cards, setCards] = useState<AdminCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"stats" | "cards">("stats");
+
+  const load = useCallback(async () => {
+    // Fetch deck info
+    const dr = await fetch("/api/admin/decks");
+    const decks = await dr.json();
+    const deck = decks.find((d: { slug: string; id: string; name: string }) => d.slug === slug);
+    if (!deck) return;
+    setDeckId(deck.id);
+    setDeckName(deck.name);
+
+    const cr = await fetch(`/api/admin/decks/${deck.id}/cards`);
+    const { stats: s, cards: c } = await cr.json();
+    setStats(s);
+    setCards(c);
+    setLoading(false);
+  }, [slug]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="flex justify-center py-20"><div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div>
+      {/* Page header */}
+      <div className="flex items-center gap-4 mb-5">
+        <Link href="/admin/decks" className="text-[10px] font-bold uppercase tracking-wider border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">
+          ← Back
+        </Link>
+        <h1 className="font-display tracking-widest text-2xl">{deckName.toUpperCase()}</h1>
+        <span className="font-mono text-[9px] text-grey-dark">{stats.length} stats · {cards.length} cards</span>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b-2 border-black mb-6">
+        {(["stats", "cards"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-5 py-2 text-[10px] font-bold uppercase tracking-wider border-r border-black transition-colors ${tab === t ? "bg-black text-white" : "bg-white text-grey-dark hover:bg-grey-light"}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "stats" && <StatsEditor deckId={deckId} stats={stats} onRefresh={load} />}
+      {tab === "cards" && <CardsEditor deckId={deckId} deckSlug={slug} stats={stats} cards={cards} onRefresh={load} />}
+    </div>
+  );
+}
+
+// ── Stats editor ──────────────────────────────────────────────────────────────
+
+function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: StatDef[]; onRefresh: () => void }) {
+  const [editing, setEditing] = useState<Record<string, Partial<StatDef>>>({});
+  const [adding, setAdding] = useState(false);
+  const [newStat, setNewStat] = useState({ name: "", display_name: "", is_inverse: false, display_order: stats.length + 1 });
+  const [saving, setSaving] = useState(false);
+
+  async function saveStat(stat: StatDef) {
+    const patch = editing[stat.id] ?? {};
+    await fetch(`/api/admin/decks/${deckId}/stats`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stat_id: stat.id, ...patch }),
+    });
+    setEditing(e => { const n = { ...e }; delete n[stat.id]; return n; });
+    onRefresh();
+  }
+
+  async function deleteStat(statId: string) {
+    if (!confirm("Delete this stat? Card values for this stat will also be removed.")) return;
+    await fetch(`/api/admin/decks/${deckId}/stats`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stat_id: statId }),
+    });
+    onRefresh();
+  }
+
+  async function addStat(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    await fetch(`/api/admin/decks/${deckId}/stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([newStat]),
+    });
+    setAdding(false);
+    setNewStat({ name: "", display_name: "", is_inverse: false, display_order: stats.length + 2 });
+    setSaving(false);
+    onRefresh();
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] text-grey-dark uppercase tracking-wider">Stat definitions for this deck ({stats.length}/8)</p>
+        {stats.length < 8 && <button onClick={() => setAdding(true)} className="btn-brutal btn-primary text-[9px] px-3 py-1.5">+ Add Stat</button>}
+      </div>
+
+      <div className="border-2 border-black" style={{ boxShadow: "4px 4px 0 #0a0a0a" }}>
+        {/* Header row */}
+        <div className="grid bg-black text-white text-[8px] font-bold uppercase tracking-wider" style={{ gridTemplateColumns: "40px 1fr 1fr 80px 60px 80px" }}>
+          <div className="px-3 py-2 border-r border-grey-dark">#</div>
+          <div className="px-3 py-2 border-r border-grey-dark">Internal Name</div>
+          <div className="px-3 py-2 border-r border-grey-dark">Display Name</div>
+          <div className="px-3 py-2 border-r border-grey-dark text-center">Lower Wins</div>
+          <div className="px-3 py-2 border-r border-grey-dark text-center">Order</div>
+          <div className="px-3 py-2 text-center">Actions</div>
+        </div>
+
+        {stats.map((stat, i) => {
+          const e = editing[stat.id] ?? {};
+          const changed = Object.keys(e).length > 0;
+          return (
+            <div key={stat.id} className={`grid border-t border-grey-light text-sm ${i % 2 === 0 ? "bg-white" : "bg-grey-light"}`} style={{ gridTemplateColumns: "40px 1fr 1fr 80px 60px 80px" }}>
+              <div className="px-3 py-2 border-r border-grey-light font-mono text-[10px] text-grey-dark flex items-center">{stat.display_order}</div>
+              <div className="px-2 py-1 border-r border-grey-light">
+                <input className="w-full text-xs font-mono bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.name} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], name: v.target.value } }))} />
+              </div>
+              <div className="px-2 py-1 border-r border-grey-light">
+                <input className="w-full text-xs bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.display_name} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], display_name: v.target.value } }))} />
+              </div>
+              <div className="px-3 py-2 border-r border-grey-light flex items-center justify-center">
+                <input type="checkbox" defaultChecked={stat.is_inverse} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], is_inverse: v.target.checked } }))} />
+              </div>
+              <div className="px-2 py-1 border-r border-grey-light">
+                <input type="number" className="w-full text-xs font-mono bg-transparent outline-none border-b border-transparent focus:border-black px-1 text-center" defaultValue={stat.display_order} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], display_order: Number(v.target.value) } }))} />
+              </div>
+              <div className="px-2 py-2 flex items-center justify-center gap-1">
+                {changed && <button onClick={() => saveStat(stat)} className="text-[8px] font-bold uppercase bg-black text-white px-2 py-1 hover:opacity-80">Save</button>}
+                <button onClick={() => deleteStat(stat.id)} className="text-[8px] text-grey-dark hover:text-black">✕</button>
+              </div>
+            </div>
+          );
+        })}
+
+        {stats.length === 0 && (
+          <div className="px-4 py-8 text-center text-[10px] text-grey-mid uppercase tracking-wider border-t border-grey-light">
+            No stats yet — add up to 8 stat definitions
+          </div>
+        )}
+      </div>
+
+      {/* Add stat form */}
+      {adding && (
+        <form onSubmit={addStat} className="mt-4 border-2 border-black p-4" style={{ boxShadow: "3px 3px 0 #0a0a0a" }}>
+          <p className="text-[9px] font-bold uppercase tracking-wider mb-3">New Stat</p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Internal Name <span className="text-grey-mid">(e.g. strength)</span></label>
+              <input className="input-brutal text-xs font-mono" value={newStat.name} onChange={e => setNewStat(s => ({ ...s, name: e.target.value.toLowerCase().replace(/\s+/g, "_") }))} required placeholder="strength" />
+            </div>
+            <div>
+              <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Display Name <span className="text-grey-mid">(e.g. Strength)</span></label>
+              <input className="input-brutal text-xs" value={newStat.display_name} onChange={e => setNewStat(s => ({ ...s, display_name: e.target.value }))} required placeholder="Strength" />
+            </div>
+          </div>
+          <div className="flex items-center gap-6 mb-3">
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={newStat.is_inverse} onChange={e => setNewStat(s => ({ ...s, is_inverse: e.target.checked }))} />
+              Lower value wins (e.g. Rank)
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              Order:
+              <input type="number" className="input-brutal w-16 text-xs font-mono py-1" value={newStat.display_order} onChange={e => setNewStat(s => ({ ...s, display_order: Number(e.target.value) }))} />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="btn-brutal btn-primary text-xs px-4 py-2">{saving ? "Adding..." : "Add Stat"}</button>
+            <button type="button" onClick={() => setAdding(false)} className="btn-brutal btn-secondary text-xs px-4 py-2">Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ── Cards editor ──────────────────────────────────────────────────────────────
+
+function CardsEditor({ deckId, deckSlug, stats, cards, onRefresh }: {
+  deckId: string; deckSlug: string; stats: StatDef[]; cards: AdminCard[]; onRefresh: () => void;
+}) {
+  const [editingCard, setEditingCard] = useState<AdminCard | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [csvError, setCsvError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function importCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    setImporting(true); setCsvError("");
+    const text = await file.text();
+    const lines = text.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) { setCsvError("CSV must have a header row + at least one card."); setImporting(false); return; }
+
+    const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+    const nameIdx = headers.indexOf("name");
+    if (nameIdx === -1) { setCsvError("CSV must have a 'name' column."); setImporting(false); return; }
+
+    const statNameToIdx: Record<string, number> = {};
+    for (const stat of stats) {
+      const idx = headers.indexOf(stat.name.toLowerCase());
+      if (idx !== -1) statNameToIdx[stat.name] = idx;
+    }
+
+    const cardRows = lines.slice(1).map(line => {
+      const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+      const statVals: Record<string, number> = {};
+      for (const [sName, idx] of Object.entries(statNameToIdx)) {
+        statVals[sName] = Number(cols[idx]) || 0;
+      }
+      return { name: cols[nameIdx], stats: statVals };
+    });
+
+    const res = await fetch(`/api/admin/decks/${deckId}/cards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cards: cardRows }),
+    });
+    if (!res.ok) setCsvError((await res.json()).error ?? "Import failed");
+    else { setImporting(false); onRefresh(); }
+    if (fileRef.current) fileRef.current.value = "";
+    setImporting(false);
+  }
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <button onClick={() => setShowAddForm(v => !v)} className="btn-brutal btn-primary text-[9px] px-3 py-1.5">
+          + Add Card
+        </button>
+        <label className="cursor-pointer">
+          <span className="btn-brutal btn-secondary text-[9px] px-3 py-1.5 inline-flex items-center gap-1.5">
+            {importing ? "Importing..." : "Import CSV"}
+          </span>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} disabled={importing} />
+        </label>
+        <a
+          href={`data:text/plain,name,${stats.map(s => s.name).join(",")}\n"Example Card",${stats.map(() => "0").join(",")}`}
+          download={`${deckSlug}-template.csv`}
+          className="text-[8px] font-bold uppercase tracking-wider text-grey-dark underline hover:text-black"
+        >
+          Download CSV Template
+        </a>
+        {csvError && <p className="text-[9px] text-red-600">{csvError}</p>}
+      </div>
+
+      {showAddForm && <AddCardForm deckId={deckId} stats={stats} onDone={() => { setShowAddForm(false); onRefresh(); }} />}
+
+      {/* Card grid */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+        {cards.map(card => (
+          <CardTile
+            key={card.id}
+            card={card}
+            stats={stats}
+            deckSlug={deckSlug}
+            onEdit={() => setEditingCard(card)}
+            onDelete={async () => {
+              if (!confirm(`Delete "${card.name}"?`)) return;
+              await fetch(`/api/admin/cards/${card.id}`, { method: "DELETE" });
+              onRefresh();
+            }}
+            onRefresh={onRefresh}
+          />
+        ))}
+        {cards.length === 0 && (
+          <p className="col-span-full text-center text-[10px] text-grey-mid uppercase tracking-wider py-10">
+            No cards yet — add manually or import a CSV
+          </p>
+        )}
+      </div>
+
+      {/* Edit modal */}
+      {editingCard && (
+        <CardEditModal
+          card={editingCard}
+          stats={stats}
+          deckSlug={deckSlug}
+          onClose={() => { setEditingCard(null); onRefresh(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CardTile({ card, stats, deckSlug, onEdit, onDelete, onRefresh }: {
+  card: AdminCard; stats: StatDef[]; deckSlug: string;
+  onEdit: () => void; onDelete: () => void; onRefresh: () => void;
+}) {
+  const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
+  const statMap: Record<string, number> = {};
+  for (const cs of card.card_stats) statMap[cs.stat_definition_id] = cs.value;
+
+  async function uploadImage(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("deck_slug", deckSlug);
+    fd.append("card_name", card.name);
+    await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
+    onRefresh();
+  }
+
+  return (
+    <div className="border-2 border-black bg-white overflow-hidden" style={{ boxShadow: "3px 3px 0 #0a0a0a" }}>
+      {/* Image */}
+      <div className="relative border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden" style={{ height: 90 }}>
+        {imageUrl
+          ? <img src={imageUrl} alt={card.name} className="w-full h-full object-contain p-1" />
+          : <span className="font-display text-grey-dark text-2xl">{card.name[0]?.toUpperCase()}</span>
+        }
+        <label className="absolute bottom-1 right-1 cursor-pointer">
+          <span className="text-[7px] font-bold uppercase bg-white border border-black px-1.5 py-0.5 hover:bg-black hover:text-white transition-colors">
+            {imageUrl ? "Change" : "Upload"}
+          </span>
+          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
+        </label>
+      </div>
+
+      {/* Name */}
+      <div className="bg-black px-2 py-1 border-b border-black">
+        <p className="font-display text-white text-[11px] leading-tight truncate">{card.name.toUpperCase()}</p>
+      </div>
+
+      {/* Stat quick view */}
+      <div className="px-2 py-1.5">
+        {stats.slice(0, 4).map(s => (
+          <div key={s.id} className="flex justify-between text-[8px]">
+            <span className="text-grey-dark uppercase tracking-wide">{s.display_name}</span>
+            <span className="font-mono font-bold">{statMap[s.id] ?? "—"}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="flex border-t border-grey-light">
+        <button onClick={onEdit} className="flex-1 py-1.5 text-[8px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border-r border-grey-light">Edit</button>
+        <button onClick={onDelete} className="px-3 py-1.5 text-[8px] font-bold uppercase tracking-wider text-grey-dark hover:bg-black hover:text-white transition-colors">✕</button>
+      </div>
+    </div>
+  );
+}
+
+function AddCardForm({ deckId, stats, onDone }: { deckId: string; stats: StatDef[]; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [statVals, setStatVals] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    const statsPayload: Record<string, number> = {};
+    for (const s of stats) statsPayload[s.name] = Number(statVals[s.name] ?? 0);
+    await fetch(`/api/admin/decks/${deckId}/cards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cards: [{ name, stats: statsPayload }] }),
+    });
+    onDone();
+  }
+
+  return (
+    <form onSubmit={submit} className="border-2 border-black p-4 mb-4" style={{ boxShadow: "3px 3px 0 #0a0a0a" }}>
+      <p className="text-[9px] font-bold uppercase tracking-wider mb-3">Add New Card</p>
+      <div className="mb-3">
+        <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Card Name</label>
+        <input className="input-brutal text-sm" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Batman" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        {stats.map(s => (
+          <div key={s.id}>
+            <label className="text-[7px] text-grey-dark uppercase tracking-wider block mb-0.5">{s.display_name}</label>
+            <input type="number" className="input-brutal text-xs font-mono py-1" value={statVals[s.name] ?? ""} onChange={e => setStatVals(v => ({ ...v, [s.name]: e.target.value }))} placeholder="0" />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" disabled={saving} className="btn-brutal btn-primary text-xs px-4 py-2">{saving ? "Saving..." : "Add Card"}</button>
+        <button type="button" onClick={onDone} className="btn-brutal btn-secondary text-xs px-4 py-2">Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+function CardEditModal({ card, stats, deckSlug, onClose }: {
+  card: AdminCard; stats: StatDef[]; deckSlug: string; onClose: () => void;
+}) {
+  const [name, setName] = useState(card.name);
+  const statDefMap: Record<string, number> = {};
+  for (const cs of card.card_stats) statDefMap[cs.stat_definition_id] = cs.value;
+  const [statVals, setStatVals] = useState<Record<string, string>>(
+    Object.fromEntries(stats.map(s => [s.id, String(statDefMap[s.id] ?? "")]))
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    const statsPayload: Record<string, number> = {};
+    for (const s of stats) statsPayload[s.id] = Number(statVals[s.id] ?? 0);
+    await fetch(`/api/admin/cards/${card.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, stats: statsPayload }),
+    });
+    onClose();
+  }
+
+  async function uploadImage(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("deck_slug", deckSlug);
+    fd.append("card_name", name);
+    await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
+  }
+
+  const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="panel-brutal w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 bg-black border-b-2 border-black">
+          <span className="font-display text-white tracking-wider text-lg">EDIT CARD</span>
+          <button onClick={onClose} className="w-7 h-7 border border-white text-white flex items-center justify-center text-sm hover:bg-white hover:text-black transition-colors">✕</button>
+        </div>
+
+        <div className="p-5">
+          {/* Image upload */}
+          <div className="flex gap-4 mb-4">
+            <div className="w-20 h-24 border-2 border-black bg-grey-light flex items-center justify-center overflow-hidden flex-shrink-0">
+              {imageUrl
+                ? <img src={imageUrl} alt={name} className="w-full h-full object-contain p-1" />
+                : <span className="font-display text-grey-dark text-2xl">{name[0]?.toUpperCase()}</span>
+              }
+            </div>
+            <div className="flex-1">
+              <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Card Name</label>
+              <input className="input-brutal text-sm mb-2" value={name} onChange={e => setName(e.target.value)} />
+              <label className="cursor-pointer inline-block">
+                <span className="text-[8px] font-bold uppercase tracking-wider border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">
+                  {imageUrl ? "Change Image" : "Upload Image"}
+                </span>
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Stat values */}
+          <p className="text-[8px] font-bold uppercase tracking-wider text-grey-dark mb-2">Stat Values</p>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {stats.map(s => (
+              <div key={s.id}>
+                <label className="text-[7px] text-grey-dark uppercase tracking-wider block mb-0.5">
+                  {s.display_name} {s.is_inverse && <span className="text-grey-mid">(lower wins)</span>}
+                </label>
+                <input
+                  type="number"
+                  className="input-brutal text-xs font-mono py-1"
+                  value={statVals[s.id] ?? ""}
+                  onChange={e => setStatVals(v => ({ ...v, [s.id]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving} className="btn-brutal btn-primary flex-1 text-xs py-2">
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button onClick={onClose} className="btn-brutal btn-secondary px-4 text-xs py-2">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
