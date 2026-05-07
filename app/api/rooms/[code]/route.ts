@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { broadcast, lobbyCh } from "@/lib/utils/broadcast";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET /api/rooms/[code] — fetch room + players
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     if (joinErr) return NextResponse.json({ error: joinErr.message }, { status: 500 });
   }
 
+  broadcast(lobbyCh(code.toUpperCase()), "players_changed");
   return NextResponse.json({ room_id: room.id, room_code: code.toUpperCase() });
 }
 
@@ -102,5 +104,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
     await supabase.from("room_players").update({ is_host: true }).eq("room_id", room.id).eq("player_id", newHost.player_id);
   }
 
+  broadcast(lobbyCh(code.toUpperCase()), "players_changed");
   return NextResponse.json({ ok: true });
 }

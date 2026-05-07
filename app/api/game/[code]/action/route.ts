@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { shuffle } from "@/lib/game/engine";
+import { broadcast, gameCh } from "@/lib/utils/broadcast";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -199,6 +200,9 @@ async function handlePickStat(roomCode: string, body: {
       },
     }).eq("id", gs.id);
 
+    // Broadcast fast result — clients receive in ~50ms instead of waiting ~400ms for Postgres Changes
+    broadcast(gameCh(roomCode), "round_result", { turn: gs.turn_number + 1 });
+
     return NextResponse.json({ ok: true, winner_id: winnerId, next_phase: nextPhase });
   }
 
@@ -245,6 +249,8 @@ async function handlePickStat(roomCode: string, body: {
       },
     },
   }).eq("id", gs.id);
+
+  broadcast(gameCh(roomCode), "round_result", { turn: gs.turn_number + 1 });
 
   return NextResponse.json({ ok: true, winner_id: null, tie: true, tied_player_ids: newTiedPlayerIds });
 }

@@ -68,26 +68,33 @@ export interface UseGameReturn {
 export function useGame(roomCode: string, myPlayerId: string | null): UseGameReturn {
   const [loading, setLoading] = useState(true);
   const [raw, setRaw] = useState<FetchedState | null>(null);
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const lastFetchRef = useRef(-10000); // tracks when we last fetched, to debounce duplicates
 
-  const fetchAndSet = useCallback(async () => {
+  // force=true bypasses debounce (used for explicit user actions like pickStat)
+  const fetchAndSet = useCallback(async (force = false) => {
+    const now = Date.now();
+    // Debounce: skip if we fetched in the last 500ms (broadcast + Postgres Changes both fire)
+    if (!force && now - lastFetchRef.current < 500) return;
+    lastFetchRef.current = now;
     const data = await fetchState(roomCode);
-    setRaw(data);
-    setLoading(false);
+    if (data) { setRaw(data); setLoading(false); }
   }, [roomCode]);
 
   useEffect(() => {
-    fetchAndSet();
+    fetchAndSet(true); // force on mount
 
     const supabase = createClient();
     const channel = supabase
       .channel(`game:${roomCode}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_states" }, fetchAndSet)
-      .on("postgres_changes", { event: "*", schema: "public", table: "player_hands" }, fetchAndSet)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_players" }, fetchAndSet)
+      // Fast path: broadcast from action API arrives in ~50ms
+      .on("broadcast", { event: "round_result" }, () => fetchAndSet())
+      // Reliable fallback: Postgres Changes arrives in ~400ms
+      // (debounce prevents double-fetch when both fire)
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_states" }, () => fetchAndSet())
+      .on("postgres_changes", { event: "*", schema: "public", table: "player_hands" }, () => fetchAndSet())
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_players" }, () => fetchAndSet())
       .subscribe();
 
-    channelRef.current = channel;
     return () => { supabase.removeChannel(channel); };
   }, [roomCode, fetchAndSet]);
 
@@ -98,8 +105,8 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "pick_stat", player_id: myPlayerId, stat_id: statId }),
     });
-    // Immediately re-fetch — don't wait for Realtime (~400ms delay)
-    fetchAndSet();
+    // Immediately re-fetch with force=true — active player gets result without waiting for broadcast
+    fetchAndSet(true);
   }, [roomCode, myPlayerId, fetchAndSet]);
 
   // ── Derive computed state ─────────────────────────────────────────────────

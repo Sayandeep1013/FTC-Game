@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { broadcast, lobbyCh } from "@/lib/utils/broadcast";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -39,5 +40,6 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ code:
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  broadcast(lobbyCh(code.toUpperCase()), "players_changed");
   return NextResponse.json({ ok: true });
 }

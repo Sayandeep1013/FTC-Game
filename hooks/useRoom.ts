@@ -2,14 +2,20 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Room, RoomPlayer } from "@/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useRoom(roomCode: string, myPlayerId: string | null) {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRoom = useCallback(async () => {
+  const lastFetchRef = useRef(-10000);
+
+  const fetchRoom = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchRef.current < 500) return;
+    lastFetchRef.current = now;
+
     const supabase = createClient();
     const { data } = await supabase
       .from("rooms")
@@ -25,23 +31,17 @@ export function useRoom(roomCode: string, myPlayerId: string | null) {
   }, [roomCode]);
 
   useEffect(() => {
-    fetchRoom();
+    fetchRoom(true); // force on mount
 
     const supabase = createClient();
 
-    // Subscribe regardless of myPlayerId — lobby must update for ALL viewers
     const channel = supabase
       .channel(`room-lobby-${roomCode}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "room_players",
-      }, fetchRoom)
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "rooms",
-      }, fetchRoom)
+      // Fast path: broadcast from join/leave/add-AI APIs (~50ms)
+      .on("broadcast", { event: "players_changed" }, () => fetchRoom())
+      // Reliable fallback: Postgres Changes (~400ms, debounced)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_players" }, () => fetchRoom())
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms" }, () => fetchRoom())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
