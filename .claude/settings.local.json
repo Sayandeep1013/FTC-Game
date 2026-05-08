@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Hero: scaleY 1.7→1.85, clamp paddingBottom for overflow gap *)"
     ]
   }
 }
