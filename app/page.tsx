@@ -38,15 +38,28 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen">
       {/* ── Hero ── */}
-      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b-2 border-black">
+      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-20 sm:pb-32 border-b-2 border-black">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-grey-dark font-bold mb-4">
               Real-time · Multiplayer · Turn-based
             </p>
+            {/*
+              scaleY stretches the letterforms taller without touching width.
+              Bebas Neue is already condensed so this gives the editorial
+              "tall display type" look. pb on the section compensates for
+              the visual overflow caused by the transform.
+            */}
             <h1
-              className="font-display text-black leading-[0.88]"
-              style={{ fontSize: "clamp(3rem, 10vw, 7.5rem)", letterSpacing: "0.04em" }}
+              className="font-display text-black"
+              style={{
+                fontSize: "clamp(3rem, 10vw, 7.5rem)",
+                letterSpacing: "0.04em",
+                lineHeight: 0.88,
+                display: "block",
+                transform: "scaleY(1.4)",
+                transformOrigin: "top left",
+              }}
             >
               FANTASY<br />TRUMP CARDS
             </h1>

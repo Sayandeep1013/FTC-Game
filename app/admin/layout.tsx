@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen">
       {/* Admin header */}
-      <div className="fixed top-14 left-0 right-0 z-30 flex items-center gap-6 px-6 py-2 bg-black border-b-2 border-black">
+      <div className="fixed left-0 right-0 z-30 flex items-center gap-6 px-6 py-2 bg-black border-b-2 border-black" style={{ top: "calc(3.5rem + 6px)" }}>
         <Link href="/admin" className="font-display text-white tracking-widest text-sm hover:opacity-70 transition-opacity">
           FTC ADMIN
         </Link>
@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </div>
       {/* Push content below both headers */}
-      <div className="pt-[calc(3.5rem+2.5rem)] px-4 sm:px-8 py-6 max-w-6xl mx-auto">
+      <div className="px-4 sm:px-8 py-6 max-w-6xl mx-auto" style={{ paddingTop: "calc(3.5rem + 6px + 2.5rem + 1rem)" }}>
         {children}
       </div>
     </div>
