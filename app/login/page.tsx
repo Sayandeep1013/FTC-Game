@@ -3,7 +3,7 @@ import { BackButton } from "@/components/ui/BackButton";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+    <main className="min-h-screen flex items-center justify-center p-4">
       {/* Corner decorations */}
       <div className="fixed top-0 left-0 w-16 h-16 border-r-2 border-b-2 border-black" />
       <div className="fixed top-0 right-0 w-16 h-16 border-l-2 border-b-2 border-black" />

@@ -37,7 +37,7 @@ export default function DecksPage() {
   );
 
   return (
-    <main className="min-h-screen bg-white px-4 sm:px-8 py-8 max-w-6xl mx-auto">
+    <main className="min-h-screen px-4 sm:px-8 py-8 max-w-6xl mx-auto">
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 border-b-2 border-black pb-6">
         <div>

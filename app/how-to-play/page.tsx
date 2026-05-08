@@ -39,7 +39,7 @@ const STEPS = [
 
 export default function HowToPlayPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
         {/* Header */}
         <div className="border-b-2 border-black pb-6 mb-12">

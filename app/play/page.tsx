@@ -43,7 +43,7 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
 
         {/* Header */}

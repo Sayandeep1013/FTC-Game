@@ -52,41 +52,17 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
       ctx = gsap.context(() => {
         const container = wrapRef.current?.querySelector<HTMLElement>(".side-line-container");
         const fillEl    = wrapRef.current?.querySelector<HTMLElement>(".side-line-fill");
-        const ballEl    = wrapRef.current?.querySelector<HTMLElement>(".side-ball");
 
-        if (container && fillEl && ballEl) {
-          // Direct onUpdate — zero lag, ball and fill always in lockstep
+        if (container && fillEl) {
           ScrollTrigger.create({
             trigger: container,
             start: SCROLL_START,
             end: SCROLL_END,
             onUpdate(self) {
-              const p = self.progress;
-              fillEl.style.transform = `scaleY(${p})`;
-              // Ball center tracks the fill tip: top = progress * 100%
-              ballEl.style.top = `${p * 100}%`;
+              fillEl.style.transform = `scaleY(${self.progress})`;
             },
           });
         }
-
-        // Section dots — activate as each enters the viewport
-        gsap.utils.toArray<Element>(".side-dot").forEach((dot) => {
-          gsap.fromTo(
-            dot,
-            { scale: 0.4, backgroundColor: "#e0e0da" },
-            {
-              scale: 1,
-              backgroundColor: "#0a0a0a",
-              duration: 0.3,
-              ease: "back.out(2)",
-              scrollTrigger: {
-                trigger: dot,
-                start: "top 62%",
-                toggleActions: "play none none reverse",
-              },
-            }
-          );
-        });
 
         // Section reveals
         gsap.utils.toArray<Element>(".reveal").forEach((el) => {
@@ -158,26 +134,11 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           />
         </div>
 
-        {/* Ball — follows the fill tip */}
-        <div
-          className="side-ball hidden xl:block absolute pointer-events-none"
-          style={{
-            left: "calc(3rem - 3.5px)",  /* centers the 9px ball on the 2px line */
-            top: "0%",
-            width: 9, height: 9,
-            borderRadius: "50%",
-            background: "#0a0a0a",
-            boxShadow: "0 0 0 2px white, 0 0 0 3.5px #0a0a0a",
-            transform: "translateY(-50%)",
-            zIndex: 2,
-          }}
-        />
 
         {/* ── Features ─────────────────────────────────────────────────────── */}
         <div style={{ height: 72 }} />
         <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
           {/* Dot on side line */}
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>WHY FTC</h2>
@@ -198,7 +159,6 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         {/* ── How to Play ──────────────────────────────────────────────────── */}
         <div style={{ height: 72 }} />
         <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>HOW TO PLAY</h2>
@@ -221,7 +181,6 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         {/* ── Choose Your Deck ─────────────────────────────────────────────── */}
         <div style={{ height: 72 }} />
         <section className="bg-white pb-24">
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto px-4 sm:px-8">
             <div className="reveal flex items-center gap-3 mb-6">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>CHOOSE YOUR DECK</h2>

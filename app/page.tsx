@@ -36,7 +36,7 @@ export default async function HomePage() {
   const { decks, cardCount } = await getPageData();
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen">
       {/* ── Hero ── */}
       <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b-2 border-black">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
