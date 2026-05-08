@@ -5,37 +5,31 @@ import { DeckCarousel } from "@/components/deck/DeckCarousel";
 import { Ticker } from "./Ticker";
 import type { Deck } from "@/types";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SCROLL SPEED CONTROL
+// ── Scroll speed control ──────────────────────────────────────────────────────
+// These control when the side line starts and finishes drawing.
+// Format: "<element-edge> <viewport-position>"
+//   "top top"       → line starts when section top hits viewport top
+//   "top center"    → starts when section top hits the middle of the viewport
+//   "bottom bottom" → line finishes when section bottom hits viewport bottom
 //
-// These two values control when the snake line starts and finishes drawing
-// relative to the snake-container and the viewport.
-//
-//   Format:  "<element-edge> <viewport-%>"
-//   "top top"       = element's top edge hits the viewport's top edge
-//   "top center"    = element's top edge hits the viewport's centre
-//   "bottom bottom" = element's bottom edge hits the viewport's bottom
-//   "bottom 80%"    = element's bottom edge hits 80% from the top of viewport
-//
-// To draw FASTER  → bring start/end closer together, e.g. "top 20%" / "bottom 80%"
-// To draw SLOWER  → spread them out, e.g. "top top" / "bottom bottom"  (current)
-// To start LATER  → change SNAKE_START to "top 30%" or "top center"
-//
-const SNAKE_START = "top top";      // ← adjust here
-const SNAKE_END   = "bottom bottom"; // ← adjust here
+// Draw FASTER  → e.g. SCROLL_START="top 20%"  SCROLL_END="bottom 80%"
+// Draw SLOWER  → keep defaults (spans the entire scroll range)
+// Start LATER  → change SCROLL_START to "top center"
+const SCROLL_START = "top top";
+const SCROLL_END   = "bottom bottom";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { n: "01", title: "PICK A DECK", body: "Choose a universe — superheroes, cars, wrestlers, anime. Every deck has 52 cards and 8 battle stats." },
+  { n: "01", title: "PICK A DECK",    body: "Choose a universe — superheroes, cars, wrestlers, anime. Every deck has 52 cards and 8 battle stats." },
   { n: "02", title: "BUILD YOUR ROOM", body: "Create a private room and invite friends, or drop in CPU opponents to fill the seats. 2–4 players." },
   { n: "03", title: "CALL YOUR STAT", body: "On your turn, pick the stat you think beats everyone else's top card. Highest value wins the pile." },
-  { n: "04", title: "WIN THE PILE", body: "Collect cards from every round you win. Last player standing takes it all." },
+  { n: "04", title: "WIN THE PILE",   body: "Collect cards from every round you win. Last player standing takes it all." },
 ];
 
 const FEATURES = [
-  { tag: "GAMEPLAY", title: "STRATEGY OVER LUCK", body: "No dice. No random draws. You pick the stat every round — reading your opponents is everything." },
-  { tag: "MULTIPLAYER", title: "REAL-TIME BATTLES", body: "2–4 players in a live room. Moves sync instantly. CPU opponents fill any empty seat." },
-  { tag: "DECKS", title: "MULTIPLE UNIVERSES", body: "Ben 10, Marvel, WWE, Dragon Ball, Harry Potter and more. Each deck is a different battle arena." },
+  { tag: "GAMEPLAY",    title: "STRATEGY OVER LUCK",  body: "No dice. No random draws. You pick the stat every round — reading your opponents is everything." },
+  { tag: "MULTIPLAYER", title: "REAL-TIME BATTLES",   body: "2–4 players in a live room. Moves sync instantly. CPU opponents fill any empty seat." },
+  { tag: "DECKS",       title: "MULTIPLE UNIVERSES",  body: "Ben 10, Marvel, WWE, Dragon Ball, Harry Potter and more. Each deck is a different battle arena." },
 ];
 
 interface HomeContentProps {
@@ -56,47 +50,45 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
       gsap.registerPlugin(ScrollTrigger);
 
       ctx = gsap.context(() => {
-        const path = document.querySelector<SVGPathElement>(".snake-path");
-        const container = document.querySelector<HTMLElement>(".snake-container");
-        const ballEl = document.querySelector<HTMLElement>(".snake-ball");
+        const container = wrapRef.current?.querySelector<HTMLElement>(".side-line-container");
+        const fillEl    = wrapRef.current?.querySelector<HTMLElement>(".side-line-fill");
+        const ballEl    = wrapRef.current?.querySelector<HTMLElement>(".side-ball");
 
-        if (path && container) {
-          const len = path.getTotalLength();
-          path.style.strokeDasharray = String(len);
-          path.style.strokeDashoffset = String(len);
-
-          // The SVG viewBox is "0 0 100 100" with preserveAspectRatio="none".
-          // getPointAtLength() returns coords in viewBox space (0–100).
-          // Converting to percentage positions maps perfectly to the container
-          // because the SVG stretches linearly to fill it.
-          function moveBall(drawnLen: number) {
-            if (!ballEl) return;
-            const clamped = Math.max(0, Math.min(drawnLen, len));
-            const pt = path!.getPointAtLength(clamped);
-            // pt.x and pt.y are 0–100 in the viewBox → use directly as CSS %
-            ballEl.style.left = `${pt.x}%`;
-            ballEl.style.top  = `${pt.y}%`;
-          }
-
-          // Initialise ball at path start
-          moveBall(0);
-
-          // onUpdate fires on every scroll tick with zero lag —
-          // both the line draw and ball move from the same `drawn` value,
-          // so they are always in perfect lockstep.
+        if (container && fillEl && ballEl) {
+          // Direct onUpdate — zero lag, ball and fill always in lockstep
           ScrollTrigger.create({
             trigger: container,
-            start: SNAKE_START,
-            end: SNAKE_END,
+            start: SCROLL_START,
+            end: SCROLL_END,
             onUpdate(self) {
-              const drawn = self.progress * len;
-              path!.style.strokeDashoffset = String(Math.max(0, len - drawn));
-              moveBall(drawn);
+              const p = self.progress;
+              fillEl.style.transform = `scaleY(${p})`;
+              // Ball center tracks the fill tip: top = progress * 100%
+              ballEl.style.top = `${p * 100}%`;
             },
           });
         }
 
-        // Section fade + slide reveals
+        // Section dots — activate as each enters the viewport
+        gsap.utils.toArray<Element>(".side-dot").forEach((dot) => {
+          gsap.fromTo(
+            dot,
+            { scale: 0.4, backgroundColor: "#e0e0da" },
+            {
+              scale: 1,
+              backgroundColor: "#0a0a0a",
+              duration: 0.3,
+              ease: "back.out(2)",
+              scrollTrigger: {
+                trigger: dot,
+                start: "top 62%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        // Section reveals
         gsap.utils.toArray<Element>(".reveal").forEach((el) => {
           gsap.from(el, {
             opacity: 0, y: 28, duration: 0.65, ease: "power2.out",
@@ -134,7 +126,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
   return (
     <div ref={wrapRef}>
       {/* ── Stats strip ──────────────────────────────────────────────────────── */}
-      <section className="bg-black" style={{ position: "relative", zIndex: 1 }}>
+      <section className="bg-black">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 py-5 flex flex-wrap items-center justify-center sm:justify-start gap-x-10 gap-y-2">
           {[
             { n: String(deckCount), label: "Decks" },
@@ -150,52 +142,42 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         </div>
       </section>
 
-      {/* ── Snake container — SVG path behind all sections ───────────────────── */}
-      <div className="snake-container relative" style={{ background: "white" }}>
+      {/* ── Side-line container ───────────────────────────────────────────────
+           The line sits in the left margin (left: 1.75rem) outside the max-w-6xl
+           content area, so sections keep their full width.                    */}
+      <div className="side-line-container relative">
 
-        {/* SVG snake — z-index 0, behind sections */}
-        <svg
-          className="snake-svg absolute inset-0 w-full h-full pointer-events-none"
-          style={{ zIndex: 0 }}
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            className="snake-path"
-            d="M 50 0 C 2 8, 98 22, 50 33 C 2 44, 98 57, 50 67 C 2 77, 98 90, 50 100"
-            fill="none"
-            stroke="#0a0a0a"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            style={{ vectorEffect: "non-scaling-stroke" } as React.CSSProperties}
-          />
-        </svg>
-
-        {/* Ball marker — travels along the drawn path tip */}
+        {/* Track + fill (xl+ only — needs enough left margin) */}
         <div
-          className="snake-ball"
+          className="hidden xl:block absolute top-0 bottom-0 pointer-events-none"
+          style={{ left: "1.75rem", width: 2, background: "#e0e0da", zIndex: 1 }}
+        >
+          <div
+            className="side-line-fill absolute top-0 left-0 w-full bg-black"
+            style={{ height: "100%", transform: "scaleY(0)", transformOrigin: "top" }}
+          />
+        </div>
+
+        {/* Ball — follows the fill tip */}
+        <div
+          className="side-ball hidden xl:block absolute pointer-events-none"
           style={{
-            position: "absolute",
-            width: 8,
-            height: 8,
+            left: "calc(1.75rem - 4px)",   /* centers the 8px ball on the 2px line */
+            top: "0%",
+            width: 9, height: 9,
             borderRadius: "50%",
             background: "#0a0a0a",
-            zIndex: 10,
-            pointerEvents: "none",
-            transform: "translate(-50%, -50%)",
             boxShadow: "0 0 0 2px white, 0 0 0 3.5px #0a0a0a",
-            left: "50%",
-            top: 0,
+            transform: "translateY(-50%)",
+            zIndex: 2,
           }}
         />
 
-        {/* Gap 1 — line + ball visible here */}
-        <div style={{ height: 80 }} />
-
-        {/* ── Features ─────────────────────────────────────────────────────────
-             bg-white + z-index 1 hides the snake inside this section          */}
-        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24" style={{ position: "relative", zIndex: 1 }}>
+        {/* ── Features ─────────────────────────────────────────────────────── */}
+        <div style={{ height: 72 }} />
+        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
+          {/* Dot on side line */}
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1.75rem - 5px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>WHY FTC</h2>
@@ -203,8 +185,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
             </div>
             <div className="features-grid grid sm:grid-cols-3 gap-0 border-2 border-black" style={{ boxShadow: "6px 6px 0 #0a0a0a" }}>
               {FEATURES.map((f, i) => (
-                <div key={f.tag} className="feature-card p-7 sm:p-10 flex flex-col gap-3"
-                  style={{ borderRight: i < 2 ? "2px solid #0a0a0a" : undefined }}>
+                <div key={f.tag} className="feature-card p-7 sm:p-10 flex flex-col gap-3" style={{ borderRight: i < 2 ? "2px solid #0a0a0a" : undefined }}>
                   <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-grey-mid">{f.tag}</span>
                   <p className="font-display tracking-wider leading-tight" style={{ fontSize: "clamp(1rem, 2.5vw, 1.4rem)" }}>{f.title}</p>
                   <p className="text-xs text-grey-dark leading-relaxed">{f.body}</p>
@@ -214,11 +195,10 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        {/* Gap 2 — line + ball visible */}
-        <div style={{ height: 80 }} />
-
-        {/* ── How to Play ──────────────────────────────────────────────────────── */}
-        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24" style={{ position: "relative", zIndex: 1 }}>
+        {/* ── How to Play ──────────────────────────────────────────────────── */}
+        <div style={{ height: 72 }} />
+        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1.75rem - 5px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>HOW TO PLAY</h2>
@@ -238,13 +218,12 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        {/* Gap 3 — line + ball visible */}
-        <div style={{ height: 80 }} />
-
-        {/* ── Choose Your Deck ─────────────────────────────────────────────────── */}
-        <section className="bg-white" style={{ position: "relative", zIndex: 1, paddingBottom: "6rem" }}>
+        {/* ── Choose Your Deck ─────────────────────────────────────────────── */}
+        <div style={{ height: 72 }} />
+        <section className="bg-white pb-24">
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1.75rem - 5px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto px-4 sm:px-8">
-            <div className="reveal flex items-center gap-3 mb-6 pt-0">
+            <div className="reveal flex items-center gap-3 mb-6">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>CHOOSE YOUR DECK</h2>
               <div className="flex-1 border-t-2 border-black" />
               <a href="/decks" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors whitespace-nowrap hidden sm:block">View All →</a>
@@ -263,11 +242,10 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        {/* Bottom gap */}
-        <div style={{ height: 60 }} />
+        <div style={{ height: 40 }} />
       </div>
 
-      {/* ── Ticker — just above footer ────────────────────────────────────────── */}
+      {/* ── Ticker — just above footer ───────────────────────────────────── */}
       <Ticker items={tickerItems} />
     </div>
   );

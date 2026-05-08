@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { HomeContent } from "@/components/home/HomeContent";
-import { TopoBackground } from "@/components/home/TopoBackground";
 import type { Deck } from "@/types";
 
 async function getPageData() {
@@ -39,9 +38,8 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-white">
       {/* ── Hero ── */}
-      <section className="relative px-4 sm:px-8 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b-2 border-black overflow-hidden">
-        <TopoBackground />
-        <div className="relative z-10 max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b-2 border-black">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-grey-dark font-bold mb-4">
               Real-time · Multiplayer · Turn-based
