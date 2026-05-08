@@ -135,20 +135,18 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         </div>
 
 
-        {/* ── Features ─────────────────────────────────────────────────────── */}
-        <div style={{ height: 72 }} />
-        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
-          {/* Dot on side line */}
-          <div className="max-w-6xl mx-auto">
-            <div className="reveal flex items-center gap-3 mb-10">
-              <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>WHY FTC</h2>
-              <div className="flex-1 border-t-2 border-black" />
+        {/* ── WHY FTC — bordered panel ─────────────────────────────────────── */}
+        <div style={{ height: 60 }} />
+        <section className="px-4 sm:px-8 py-1" style={{ position: "relative", zIndex: 1 }}>
+          <div className="reveal max-w-6xl mx-auto border-2 border-black bg-white" style={{ boxShadow: "5px 5px 0 #0a0a0a" }}>
+            <div className="px-6 sm:px-8 py-4 border-b-2 border-black">
+              <h2 className="font-display tracking-widest" style={{ fontSize: "clamp(1.1rem, 3vw, 1.8rem)" }}>WHY FTC</h2>
             </div>
-            <div className="features-grid grid sm:grid-cols-3 gap-0 border-2 border-black" style={{ boxShadow: "6px 6px 0 #0a0a0a" }}>
+            <div className="features-grid grid sm:grid-cols-3">
               {FEATURES.map((f, i) => (
-                <div key={f.tag} className="feature-card p-7 sm:p-10 flex flex-col gap-3" style={{ borderRight: i < 2 ? "2px solid #0a0a0a" : undefined }}>
+                <div key={f.tag} className="feature-card p-6 sm:p-9 flex flex-col gap-3" style={{ borderRight: i < 2 ? "2px solid #0a0a0a" : undefined }}>
                   <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-grey-mid">{f.tag}</span>
-                  <p className="font-display tracking-wider leading-tight" style={{ fontSize: "clamp(1rem, 2.5vw, 1.4rem)" }}>{f.title}</p>
+                  <p className="font-display tracking-wider leading-tight" style={{ fontSize: "clamp(1rem, 2.5vw, 1.35rem)" }}>{f.title}</p>
                   <p className="text-xs text-grey-dark leading-relaxed">{f.body}</p>
                 </div>
               ))}
@@ -156,42 +154,39 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        {/* ── How to Play ──────────────────────────────────────────────────── */}
-        <div style={{ height: 72 }} />
-        <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
-          <div className="max-w-6xl mx-auto">
-            <div className="reveal flex items-center gap-3 mb-10">
-              <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>HOW TO PLAY</h2>
-              <div className="flex-1 border-t-2 border-black" />
-              <a href="/how-to-play" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors whitespace-nowrap hidden sm:block">Full Rules →</a>
+        {/* ── HOW TO PLAY — bordered panel ─────────────────────────────────── */}
+        <div style={{ height: 60 }} />
+        <section className="px-4 sm:px-8 py-1" style={{ position: "relative", zIndex: 1 }}>
+          <div className="reveal max-w-6xl mx-auto border-2 border-black bg-white" style={{ boxShadow: "5px 5px 0 #0a0a0a" }}>
+            <div className="px-6 sm:px-8 py-4 border-b-2 border-black flex items-center justify-between">
+              <h2 className="font-display tracking-widest" style={{ fontSize: "clamp(1.1rem, 3vw, 1.8rem)" }}>HOW TO PLAY</h2>
+              <a href="/how-to-play" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors hidden sm:block">Full Rules →</a>
             </div>
-            <div className="steps-grid grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {STEPS.map((step) => (
-                <div key={step.n} className="step-card border-2 border-black bg-white p-7 flex flex-col gap-3" style={{ boxShadow: "4px 4px 0 #0a0a0a" }}>
-                  <span className="font-display text-grey-light leading-none select-none" style={{ fontSize: "3.8rem" }}>{step.n}</span>
-                  <div className="w-8 border-t-2 border-black" />
-                  <p className="font-display tracking-widest text-base leading-tight">{step.title}</p>
-                  <p className="text-xs text-grey-dark leading-relaxed">{step.body}</p>
-                </div>
-              ))}
+            <div className="p-5 sm:p-7">
+              <div className="steps-grid grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {STEPS.map((step) => (
+                  <div key={step.n} className="step-card border-2 border-black bg-white p-6 flex flex-col gap-3" style={{ boxShadow: "4px 4px 0 #0a0a0a" }}>
+                    <span className="font-display text-grey-light leading-none select-none" style={{ fontSize: "3.5rem" }}>{step.n}</span>
+                    <div className="w-8 border-t-2 border-black" />
+                    <p className="font-display tracking-widest text-sm leading-tight">{step.title}</p>
+                    <p className="text-xs text-grey-dark leading-relaxed">{step.body}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ── Choose Your Deck ─────────────────────────────────────────────── */}
-        <div style={{ height: 72 }} />
-        <section className="bg-white pb-24">
-          <div className="max-w-6xl mx-auto px-4 sm:px-8">
-            <div className="reveal flex items-center gap-3 mb-6">
-              <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>CHOOSE YOUR DECK</h2>
-              <div className="flex-1 border-t-2 border-black" />
-              <a href="/decks" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors whitespace-nowrap hidden sm:block">View All →</a>
-            </div>
+        {/* ── CHOOSE YOUR DECK — full-width bordered band ───────────────────── */}
+        <div style={{ height: 60 }} />
+        <section className="bg-white border-t-2 border-b-2 border-black" style={{ position: "relative", zIndex: 1 }}>
+          <div className="reveal max-w-6xl mx-auto px-4 sm:px-8 py-4 border-b-2 border-black flex items-center justify-between">
+            <h2 className="font-display tracking-widest" style={{ fontSize: "clamp(1.1rem, 3vw, 1.8rem)" }}>CHOOSE YOUR DECK</h2>
+            <a href="/decks" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors hidden sm:block">View All →</a>
           </div>
-          {/* xl:pl-10 clears the side line (line at ~16px, carousel needs ~40px) */}
-          <div className="reveal xl:pl-10">
+          <div className="reveal py-2 xl:pl-10">
             {decks.length === 0 ? (
-              <div className="px-8 max-w-6xl mx-auto">
+              <div className="px-8 max-w-6xl mx-auto py-8">
                 <div className="panel-brutal p-8 text-center max-w-sm mx-auto">
                   <p className="font-bold text-grey-dark text-sm">No decks available yet.</p>
                 </div>
@@ -202,7 +197,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        <div style={{ height: 40 }} />
+        <div style={{ height: 60 }} />
       </div>
 
       {/* ── Ticker — just above footer ───────────────────────────────────── */}
