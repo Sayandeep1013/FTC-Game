@@ -33,13 +33,33 @@ export function Header() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b-2 border-black bg-white">
-        <Link
-          href="/"
-          onClick={handleLogoClick}
-          className="font-display text-2xl tracking-widest hover:opacity-70 transition-opacity"
-        >
-          FTC
-        </Link>
+        <div className="flex items-center gap-4 sm:gap-6">
+          <Link
+            href="/"
+            onClick={handleLogoClick}
+            className="font-display text-2xl tracking-widest hover:opacity-70 transition-opacity"
+          >
+            FTC
+          </Link>
+
+          {/* Nav links — hidden in-room to keep game UI clean */}
+          {!inRoom && (
+            <nav className="hidden sm:flex items-center gap-1">
+              <Link
+                href="/decks"
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border border-transparent hover:border-black transition-colors"
+              >
+                Decks
+              </Link>
+              <Link
+                href="/play"
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border border-transparent hover:border-black transition-colors"
+              >
+                Play
+              </Link>
+            </nav>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           {!inRoom && (
