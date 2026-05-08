@@ -272,6 +272,12 @@ body {
   }
 }
 
+/* ── Ticker marquee ─────────────────────────────────────────────────────────── */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
 /* ── Card 3D Tilt (JS-driven via CSS vars) ──────────────────────────────────── */
 .card-tilt {
   transform-style: preserve-3d;

@@ -22,7 +22,7 @@ export default function PlayPage() {
       .select("id, name, slug, cover_image_url, is_active, created_at, stat_definitions(count), cards(count)")
       .eq("is_active", true)
       .order("name")
-      .then(({ data }) => { setDecks((data ?? []) as Deck[]); setLoading(false); });
+      .then(({ data }) => { setDecks((data ?? []) as unknown as Deck[]); setLoading(false); });
   }, []);
 
   // Close dropdown on outside click

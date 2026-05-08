@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { DeckCarousel } from "@/components/deck/DeckCarousel";
+import { Ticker } from "./Ticker";
 import type { Deck } from "@/types";
 
 const STEPS = [
@@ -113,8 +114,17 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
     return () => ctx?.revert();
   }, []);
 
+  // Build ticker items: each deck with up to 8 card names
+  const tickerItems = decks.map(deck => ({
+    deckName: deck.name,
+    cards: (deck.cards ?? []).slice(0, 8).map(c => c.name),
+  }));
+
   return (
     <div ref={containerRef}>
+      {/* ── Ticker — deck names + cards, infinite horizontal scroll ──── */}
+      <Ticker items={tickerItems} />
+
       {/* ── Stats strip ─────────────────────────────────────────────────── */}
       <section className="border-b-2 border-black bg-black scroll-reveal">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 py-4 flex flex-wrap items-center justify-center sm:justify-start gap-x-8 gap-y-2">
