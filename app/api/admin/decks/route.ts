@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const supabase = db();
   const { data, error } = await supabase
     .from("decks")
-    .insert({ name, slug, cover_image_url: null, is_active: false })
+    .insert({ name, slug, cover_image_url: "pending", is_active: false })
     .select()
     .single();
 
