@@ -34,6 +34,11 @@
 html {
   font-family: var(--font-sans), sans-serif;
   background-color: var(--white);
+  background-image: url('/topo-bg.svg');
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--black);
   -webkit-font-smoothing: antialiased;
 }

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Bebas_Neue, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/ui/Header";
 import { Footer } from "@/components/ui/Footer";
-import { TopoBackground } from "@/components/home/TopoBackground";
 import { LoadingWrapper } from "@/components/ui/LoadingScreen";
 import "./globals.css";
 
@@ -36,8 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${spaceGrotesk.variable} ${bebasNeue.variable} ${jetbrainsMono.variable}`}>
       <body>
         <LoadingWrapper>
-          {/* Topographic contour lines — fixed behind every page */}
-          <TopoBackground fixed />
           <Header />
           <div className="pt-14 flex flex-col min-h-screen">
             <div className="flex-1">{children}</div>
