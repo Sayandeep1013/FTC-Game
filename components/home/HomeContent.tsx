@@ -150,7 +150,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         {/* Track + fill (xl+ only — needs enough left margin) */}
         <div
           className="hidden xl:block absolute top-0 bottom-0 pointer-events-none"
-          style={{ left: "1rem", width: 2, background: "#e0e0da", zIndex: 1 }}
+          style={{ left: "3rem", width: 2, background: "#e0e0da", zIndex: 1 }}
         >
           <div
             className="side-line-fill absolute top-0 left-0 w-full bg-black"
@@ -162,7 +162,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         <div
           className="side-ball hidden xl:block absolute pointer-events-none"
           style={{
-            left: "calc(1rem - 3.5px)",  /* centers the 9px ball on the 2px line */
+            left: "calc(3rem - 3.5px)",  /* centers the 9px ball on the 2px line */
             top: "0%",
             width: 9, height: 9,
             borderRadius: "50%",
@@ -177,7 +177,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         <div style={{ height: 72 }} />
         <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
           {/* Dot on side line */}
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>WHY FTC</h2>
@@ -198,7 +198,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         {/* ── How to Play ──────────────────────────────────────────────────── */}
         <div style={{ height: 72 }} />
         <section className="bg-white px-4 sm:px-8 py-16 sm:py-24">
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto">
             <div className="reveal flex items-center gap-3 mb-10">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>HOW TO PLAY</h2>
@@ -221,7 +221,7 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
         {/* ── Choose Your Deck ─────────────────────────────────────────────── */}
         <div style={{ height: 72 }} />
         <section className="bg-white pb-24">
-          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(1rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
+          <div className="side-dot hidden xl:block absolute" style={{ left: "calc(3rem - 4px)", width: 10, height: 10, top: "calc(72px + 2.5rem)", borderRadius: "50%", border: "2px solid #0a0a0a", background: "#e0e0da", zIndex: 2 }} />
           <div className="max-w-6xl mx-auto px-4 sm:px-8">
             <div className="reveal flex items-center gap-3 mb-6">
               <h2 className="font-display tracking-widest whitespace-nowrap" style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)" }}>CHOOSE YOUR DECK</h2>
