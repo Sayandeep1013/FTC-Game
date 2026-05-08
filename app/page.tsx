@@ -38,7 +38,8 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen">
       {/* ── Hero ── */}
-      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-20 sm:pb-32 border-b-2 border-black">
+      <section className="px-4 sm:px-8 pt-20 sm:pt-12 border-b-2 border-black"
+        style={{ paddingBottom: "clamp(8rem, 16vw, 18rem)" }}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-grey-dark font-bold mb-4">
@@ -54,10 +55,10 @@ export default async function HomePage() {
               className="font-display text-black"
               style={{
                 fontSize: "clamp(3rem, 10vw, 7.5rem)",
-                letterSpacing: "0.04em",
-                lineHeight: 0.88,
+                letterSpacing: "0.06em",
+                lineHeight: 0.98,
                 display: "block",
-                transform: "scaleY(1.4)",
+                transform: "scaleY(2.1)",
                 transformOrigin: "top left",
               }}
             >
