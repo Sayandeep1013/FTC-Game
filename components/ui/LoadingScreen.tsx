@@ -1,31 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// All external assets that must preload before the loading screen exits
-const DECK_COVER_URLS = [
-  "https://upload.wikimedia.org/wikipedia/en/1/1e/Ben10poster.jpg",
-  "https://upload.wikimedia.org/wikipedia/en/0/04/MMPR_title_screen.jpg",
-  "https://upload.wikimedia.org/wikipedia/en/6/6a/Avengers_Endgame_poster.jpg",
-  "https://upload.wikimedia.org/wikipedia/en/a/a7/Dragon_Ball_Super_logo.png",
-];
-
-function preloadImages(urls: string[]): Promise<void> {
-  const promises = urls.map(
-    (src) =>
-      new Promise<void>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => resolve();
-        img.onerror = () => resolve(); // resolve even on error — don't block forever
-        img.src = src;
-      })
-  );
-  return Promise.all(promises).then(() => {});
-}
-
-// Minimum time (ms) loading screen is shown — feels intentional, not a flash
-const MIN_LOAD_MS = 1800;
+const MIN_MS = 2800; // minimum screen time so it never feels like a flash
 
 interface LoadingScreenProps {
   onDone: () => void;
@@ -33,36 +11,96 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ onDone }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
+  const [label, setLabel] = useState("Starting up");
+  const [imageCount, setImageCount] = useState({ loaded: 0, total: 0 });
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     const start = Date.now();
+    let cancelled = false;
 
-    // Animate progress bar while assets load
-    const interval = setInterval(() => {
-      // Fast at first, slows near 85% until assets are actually done
-      setProgress((p) => {
-        if (p >= 85) return p;
-        return Math.min(85, p + (85 - p) * 0.12);
+    // Smoothly animate progress to a target value
+    function animateTo(target: number, durationMs: number): Promise<void> {
+      return new Promise((resolve) => {
+        const startVal = progress;
+        const startTime = Date.now();
+        function tick() {
+          if (cancelled) return resolve();
+          const elapsed = Date.now() - startTime;
+          const t = Math.min(1, elapsed / durationMs);
+          const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+          setProgress(startVal + (target - startVal) * eased);
+          if (t < 1) requestAnimationFrame(tick);
+          else resolve();
+        }
+        requestAnimationFrame(tick);
       });
-    }, 80);
+    }
 
-    preloadImages(DECK_COVER_URLS).then(() => {
-      clearInterval(interval);
-      setProgress(100);
+    async function run() {
+      // Stage 1 — warm up 0 → 12%
+      await animateTo(12, 350);
+      if (cancelled) return;
+
+      // Stage 2 — fetch the list of assets to preload
+      setLabel("Fetching deck data");
+      let urls: string[] = [];
+      try {
+        const res = await fetch("/api/preload");
+        const data = await res.json();
+        urls = Array.isArray(data.urls) ? data.urls : [];
+      } catch {
+        // network issue — continue without preloading
+      }
+      if (cancelled) return;
+
+      await animateTo(20, 200);
+
+      // Stage 3 — preload every image, bar advances per image
+      const total = urls.length;
+      setImageCount({ loaded: 0, total });
+      setLabel(total > 0 ? "Loading assets" : "Preparing");
+
+      let loaded = 0;
+      const IMAGE_RANGE = 72; // 20 → 92%
+
+      await Promise.all(
+        urls.map(
+          (src) =>
+            new Promise<void>((resolve) => {
+              const img = new window.Image();
+              img.onload = img.onerror = () => {
+                if (cancelled) return resolve();
+                loaded++;
+                setImageCount({ loaded, total });
+                setProgress(20 + (loaded / Math.max(total, 1)) * IMAGE_RANGE);
+                resolve();
+              };
+              img.src = src;
+            })
+        )
+      );
+      if (cancelled) return;
+
+      // Stage 4 — finalize
+      setLabel("Ready");
+      await animateTo(100, 300);
+
       const elapsed = Date.now() - start;
-      const remaining = Math.max(0, MIN_LOAD_MS - elapsed);
-      setTimeout(onDone, remaining + 300); // +300 for bar to fill visually
-    });
+      const wait = Math.max(0, MIN_MS - elapsed) + 350; // +350 for bar to visually fill
+      setTimeout(() => { if (!cancelled) onDoneRef.current(); }, wait);
+    }
 
-    return () => clearInterval(interval);
-  }, [onDone]);
+    run();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="loading-screen">
-      {/* Corner line decorations */}
       <CornerDecor />
 
-      {/* Logo stamps in */}
       <motion.h1
         className="font-display text-white select-none"
         style={{ fontSize: "clamp(4rem, 12vw, 9rem)", letterSpacing: "0.15em" }}
@@ -82,53 +120,52 @@ export function LoadingScreen({ onDone }: LoadingScreenProps) {
         Fantasy Trump Cards
       </motion.p>
 
-      {/* Progress bar */}
       <motion.div
         className="loading-progress-track mt-10"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.3 }}
       >
         <div
           className="loading-progress-fill"
-          style={{ width: `${progress}%`, transition: "width 0.3s ease" }}
+          style={{ width: `${progress}%`, transition: "width 0.18s ease-out" }}
         />
       </motion.div>
 
       <motion.p
-        className="text-grey-mid text-xs uppercase tracking-[0.2em] mt-3"
+        className="text-grey-mid text-[10px] uppercase tracking-[0.18em] mt-3 tabular-nums"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.4 }}
       >
-        Loading assets...
+        {label}
+        {imageCount.total > 0 && (
+          <span className="text-grey-dark ml-2">
+            {imageCount.loaded}/{imageCount.total}
+          </span>
+        )}
       </motion.p>
     </div>
   );
 }
 
-// Thin line decorations in the four corners
 function CornerDecor() {
   const size = 40;
   const stroke = "rgba(245,245,240,0.15)";
   return (
     <>
-      {/* top-left */}
       <svg width={size} height={size} className="absolute top-6 left-6" fill="none">
         <line x1="0" y1="0" x2={size} y2="0" stroke={stroke} strokeWidth="1.5" />
         <line x1="0" y1="0" x2="0" y2={size} stroke={stroke} strokeWidth="1.5" />
       </svg>
-      {/* top-right */}
       <svg width={size} height={size} className="absolute top-6 right-6" fill="none">
         <line x1="0" y1="0" x2={size} y2="0" stroke={stroke} strokeWidth="1.5" />
         <line x1={size} y1="0" x2={size} y2={size} stroke={stroke} strokeWidth="1.5" />
       </svg>
-      {/* bottom-left */}
       <svg width={size} height={size} className="absolute bottom-6 left-6" fill="none">
         <line x1="0" y1={size} x2={size} y2={size} stroke={stroke} strokeWidth="1.5" />
         <line x1="0" y1="0" x2="0" y2={size} stroke={stroke} strokeWidth="1.5" />
       </svg>
-      {/* bottom-right */}
       <svg width={size} height={size} className="absolute bottom-6 right-6" fill="none">
         <line x1="0" y1={size} x2={size} y2={size} stroke={stroke} strokeWidth="1.5" />
         <line x1={size} y1="0" x2={size} y2={size} stroke={stroke} strokeWidth="1.5" />
@@ -137,7 +174,6 @@ function CornerDecor() {
   );
 }
 
-// Wrapper that fades the loading screen out and reveals children
 export function LoadingWrapper({ children }: { children: React.ReactNode }) {
   const [done, setDone] = useState(false);
 
@@ -148,7 +184,7 @@ export function LoadingWrapper({ children }: { children: React.ReactNode }) {
           <motion.div
             key="loader"
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.5 }}
             style={{ position: "fixed", inset: 0, zIndex: 100 }}
           >
             <LoadingScreen onDone={() => setDone(true)} />
@@ -157,7 +193,7 @@ export function LoadingWrapper({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
       <motion.div
         animate={{ opacity: done ? 1 : 0 }}
-        transition={{ duration: 0.3, delay: done ? 0.1 : 0 }}
+        transition={{ duration: 0.35, delay: done ? 0.15 : 0 }}
       >
         {children}
       </motion.div>
