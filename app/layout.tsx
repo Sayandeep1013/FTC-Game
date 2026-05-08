@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Bebas_Neue, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/ui/Header";
+import { Footer } from "@/components/ui/Footer";
 import { LoadingWrapper } from "@/components/ui/LoadingScreen";
 import "./globals.css";
 
@@ -35,7 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <LoadingWrapper>
           <Header />
-          <div className="pt-14">{children}</div>
+          <div className="pt-14 flex flex-col min-h-screen">
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </div>
         </LoadingWrapper>
       </body>
     </html>

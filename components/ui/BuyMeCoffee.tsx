@@ -2,20 +2,33 @@
 
 import { useState } from "react";
 
-export function BuyMeCoffee() {
+export function BuyMeCoffee({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
+
+  const trigger = compact ? (
+    <button
+      onClick={() => setOpen(true)}
+      className="text-[9px] font-bold uppercase tracking-wider border border-black px-2.5 py-1.5 hover:bg-black hover:text-white transition-colors flex items-center gap-1.5"
+      title="Support this project"
+    >
+      <CupIcon />
+      <span>Support</span>
+    </button>
+  ) : (
+    <button
+      onClick={() => setOpen(true)}
+      className="btn-brutal btn-primary fixed bottom-5 right-5 z-30 flex items-center gap-2"
+      style={{ fontSize: "0.75rem", padding: "8px 14px" }}
+      title="Support this project"
+    >
+      <CupIcon />
+      <span>Support</span>
+    </button>
+  );
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="btn-brutal btn-primary fixed bottom-5 right-5 z-30 flex items-center gap-2"
-        style={{ fontSize: "0.75rem", padding: "8px 14px" }}
-        title="Support this project"
-      >
-        <CupIcon />
-        <span>Support</span>
-      </button>
+      {trigger}
 
       {open && (
         <div className="modal-overlay" onClick={() => setOpen(false)}>

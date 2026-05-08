@@ -45,18 +45,19 @@ export function Header() {
           {/* Nav links — hidden in-room to keep game UI clean */}
           {!inRoom && (
             <nav className="hidden sm:flex items-center gap-1">
-              <Link
-                href="/decks"
-                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border border-transparent hover:border-black transition-colors"
-              >
-                Decks
-              </Link>
-              <Link
-                href="/play"
-                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border border-transparent hover:border-black transition-colors"
-              >
-                Play
-              </Link>
+              {[
+                { href: "/decks", label: "Decks" },
+                { href: "/play", label: "Play" },
+                { href: "/how-to-play", label: "How to Play" },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border border-transparent hover:border-black transition-colors"
+                >
+                  {label}
+                </Link>
+              ))}
             </nav>
           )}
         </div>
