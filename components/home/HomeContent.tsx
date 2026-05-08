@@ -177,19 +177,17 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           </div>
         </section>
 
-        {/* ── CHOOSE YOUR DECK — full-width bordered band ───────────────────── */}
+        {/* ── CHOOSE YOUR DECK — bordered panel (same style as others) ────────── */}
         <div style={{ height: 60 }} />
-        <section className="bg-white border-t-2 border-b-2 border-black" style={{ position: "relative", zIndex: 1 }}>
-          <div className="reveal max-w-6xl mx-auto px-4 sm:px-8 py-4 border-b-2 border-black flex items-center justify-between">
-            <h2 className="font-display tracking-widest" style={{ fontSize: "clamp(1.1rem, 3vw, 1.8rem)" }}>CHOOSE YOUR DECK</h2>
-            <a href="/decks" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors hidden sm:block">View All →</a>
-          </div>
-          <div className="reveal py-2 xl:pl-10">
+        <section className="px-4 sm:px-8 py-1" style={{ position: "relative", zIndex: 1 }}>
+          <div className="reveal max-w-6xl mx-auto border-2 border-black bg-white" style={{ boxShadow: "5px 5px 0 #0a0a0a" }}>
+            <div className="px-6 sm:px-8 py-4 border-b-2 border-black flex items-center justify-between">
+              <h2 className="font-display tracking-widest" style={{ fontSize: "clamp(1.1rem, 3vw, 1.8rem)" }}>CHOOSE YOUR DECK</h2>
+              <a href="/decks" className="text-[9px] font-bold uppercase tracking-wider text-grey-mid hover:text-black transition-colors hidden sm:block">View All →</a>
+            </div>
             {decks.length === 0 ? (
-              <div className="px-8 max-w-6xl mx-auto py-8">
-                <div className="panel-brutal p-8 text-center max-w-sm mx-auto">
-                  <p className="font-bold text-grey-dark text-sm">No decks available yet.</p>
-                </div>
+              <div className="p-8 text-center">
+                <p className="font-bold text-grey-dark text-sm">No decks available yet.</p>
               </div>
             ) : (
               <DeckCarousel decks={decks} />
