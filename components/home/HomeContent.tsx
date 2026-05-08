@@ -5,6 +5,26 @@ import { DeckCarousel } from "@/components/deck/DeckCarousel";
 import { Ticker } from "./Ticker";
 import type { Deck } from "@/types";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SCROLL SPEED CONTROL
+//
+// These two values control when the snake line starts and finishes drawing
+// relative to the snake-container and the viewport.
+//
+//   Format:  "<element-edge> <viewport-%>"
+//   "top top"       = element's top edge hits the viewport's top edge
+//   "top center"    = element's top edge hits the viewport's centre
+//   "bottom bottom" = element's bottom edge hits the viewport's bottom
+//   "bottom 80%"    = element's bottom edge hits 80% from the top of viewport
+//
+// To draw FASTER  → bring start/end closer together, e.g. "top 20%" / "bottom 80%"
+// To draw SLOWER  → spread them out, e.g. "top top" / "bottom bottom"  (current)
+// To start LATER  → change SNAKE_START to "top 30%" or "top center"
+//
+const SNAKE_START = "top top";      // ← adjust here
+const SNAKE_END   = "bottom bottom"; // ← adjust here
+// ─────────────────────────────────────────────────────────────────────────────
+
 const STEPS = [
   { n: "01", title: "PICK A DECK", body: "Choose a universe — superheroes, cars, wrestlers, anime. Every deck has 52 cards and 8 battle stats." },
   { n: "02", title: "BUILD YOUR ROOM", body: "Create a private room and invite friends, or drop in CPU opponents to fill the seats. 2–4 players." },
@@ -42,30 +62,36 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
 
         if (path && container) {
           const len = path.getTotalLength();
-          // Start fully undrawn
           path.style.strokeDasharray = String(len);
           path.style.strokeDashoffset = String(len);
 
-          // Position ball at start of path
-          if (ballEl) {
-            const p0 = path.getPointAtLength(0);
-            ballEl.style.left = `${p0.x}%`;
-            ballEl.style.top = `${p0.y}%`;
+          // The SVG viewBox is "0 0 100 100" with preserveAspectRatio="none".
+          // getPointAtLength() returns coords in viewBox space (0–100).
+          // Converting to percentage positions maps perfectly to the container
+          // because the SVG stretches linearly to fill it.
+          function moveBall(drawnLen: number) {
+            if (!ballEl) return;
+            const clamped = Math.max(0, Math.min(drawnLen, len));
+            const pt = path!.getPointAtLength(clamped);
+            // pt.x and pt.y are 0–100 in the viewBox → use directly as CSS %
+            ballEl.style.left = `${pt.x}%`;
+            ballEl.style.top  = `${pt.y}%`;
           }
 
-          // Direct onUpdate — INSTANT sync with scroll, zero lag
+          // Initialise ball at path start
+          moveBall(0);
+
+          // onUpdate fires on every scroll tick with zero lag —
+          // both the line draw and ball move from the same `drawn` value,
+          // so they are always in perfect lockstep.
           ScrollTrigger.create({
             trigger: container,
-            start: "top top",
-            end: "bottom bottom",
+            start: SNAKE_START,
+            end: SNAKE_END,
             onUpdate(self) {
               const drawn = self.progress * len;
-              path.style.strokeDashoffset = String(len - drawn);
-              if (ballEl) {
-                const pt = path.getPointAtLength(drawn);
-                ballEl.style.left = `${pt.x}%`;
-                ballEl.style.top = `${pt.y}%`;
-              }
+              path!.style.strokeDashoffset = String(Math.max(0, len - drawn));
+              moveBall(drawn);
             },
           });
         }
@@ -146,22 +172,21 @@ export function HomeContent({ decks, deckCount, cardCount }: HomeContentProps) {
           />
         </svg>
 
-        {/* Ball marker — travels along the path */}
+        {/* Ball marker — travels along the drawn path tip */}
         <div
           className="snake-ball"
           style={{
             position: "absolute",
-            width: 14,
-            height: 14,
+            width: 8,
+            height: 8,
             borderRadius: "50%",
             background: "#0a0a0a",
             zIndex: 10,
             pointerEvents: "none",
             transform: "translate(-50%, -50%)",
-            boxShadow: "0 0 0 3px white, 0 0 0 5px #0a0a0a",
+            boxShadow: "0 0 0 2px white, 0 0 0 3.5px #0a0a0a",
             left: "50%",
             top: 0,
-            transition: "none",
           }}
         />
 
