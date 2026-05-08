@@ -38,7 +38,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen">
       {/* ── Hero ── */}
-      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-14 sm:pb-20 border-b-2 border-black">
+      <section className="px-4 sm:px-8 pt-20 sm:pt-28 pb-16 sm:pb-24 border-b-2 border-black">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div>
             <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-grey-dark font-bold mb-4">
@@ -46,7 +46,7 @@ export default async function HomePage() {
             </p>
             <h1
               className="font-display text-black leading-[0.88]"
-              style={{ fontSize: "clamp(2.6rem, 8vw, 6rem)", letterSpacing: "0.04em" }}
+              style={{ fontSize: "clamp(3rem, 10vw, 7.5rem)", letterSpacing: "0.04em" }}
             >
               FANTASY<br />TRUMP CARDS
             </h1>
