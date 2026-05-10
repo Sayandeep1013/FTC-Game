@@ -10,6 +10,7 @@ interface AdminUniverse {
   name: string;
   slug: string;
   description: string | null;
+  cover_image_url: string | null;
   is_active: boolean;
   display_order: number;
 }
@@ -100,6 +101,18 @@ export default function AdminDecksPage() {
     load();
   }
 
+  async function uploadUniverseCover(universe: AdminUniverse, file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("slug", universe.slug);
+    const res = await fetch(`/api/admin/universes/${universe.id}/cover`, { method: "POST", body: fd });
+    if (!res.ok) {
+      alert((await res.json()).error ?? "Universe cover upload failed");
+      return;
+    }
+    load();
+  }
+
   async function toggleActive(deck: AdminDeck) {
     const cardCount = getCount(deck.cards);
     const statCount = getCount(deck.stat_definitions);
@@ -181,7 +194,11 @@ export default function AdminDecksPage() {
                 </button>
               </div>
             </div>
-            <UniverseSettings universe={universe} onSave={updates => updateUniverse(universe.id, updates)} />
+            <UniverseSettings
+              universe={universe}
+              onSave={updates => updateUniverse(universe.id, updates)}
+              onUploadCover={file => uploadUniverseCover(universe, file)}
+            />
 
             {decks.length === 0 ? (
               <div className="px-5 py-8 text-center text-xs text-grey-mid">No decks in this universe yet.</div>
@@ -199,7 +216,15 @@ export default function AdminDecksPage() {
   );
 }
 
-function UniverseSettings({ universe, onSave }: { universe: AdminUniverse; onSave: (updates: Partial<AdminUniverse>) => void }) {
+function UniverseSettings({
+  universe,
+  onSave,
+  onUploadCover,
+}: {
+  universe: AdminUniverse;
+  onSave: (updates: Partial<AdminUniverse>) => void;
+  onUploadCover: (file: File) => void;
+}) {
   const [draft, setDraft] = useState({
     name: universe.name,
     slug: universe.slug,
@@ -217,7 +242,19 @@ function UniverseSettings({ universe, onSave }: { universe: AdminUniverse; onSav
   }, [universe]);
 
   return (
-    <div className="grid md:grid-cols-[1fr_1fr_2fr_100px_auto] gap-3 p-4 border-b-2 border-black bg-grey-light items-end">
+    <div className="grid lg:grid-cols-[140px_1fr] gap-4 p-4 border-b-2 border-black bg-grey-light">
+      <div className="relative border-2 border-black bg-white h-32 overflow-hidden" style={{ boxShadow: "3px 3px 0 #0a0a0a" }}>
+        <DeckCoverArt slug={universe.slug} name={universe.name} coverImageUrl={universe.cover_image_url} className="w-full h-full" />
+        <label className="absolute bottom-2 right-2 cursor-pointer">
+          <span className="text-[8px] font-bold uppercase tracking-wider bg-white border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">
+            {getDeckCoverUrl(universe.cover_image_url, universe.slug) ? "Change" : "Upload"}
+          </span>
+          <input type="file" accept="image/*" className="hidden" onChange={e => {
+            const f = e.target.files?.[0]; if (f) onUploadCover(f);
+          }} />
+        </label>
+      </div>
+      <div className="grid md:grid-cols-[1fr_1fr_2fr_100px_auto] gap-3 items-end">
       <label className="block">
         <span className="text-[8px] uppercase tracking-wider text-grey-dark block mb-1">Name</span>
         <input className="input-brutal text-xs bg-white" value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
@@ -237,6 +274,7 @@ function UniverseSettings({ universe, onSave }: { universe: AdminUniverse; onSav
       <button onClick={() => onSave(draft)} className="btn-brutal btn-secondary text-[9px] px-3 py-2">
         Save
       </button>
+      </div>
     </div>
   );
 }
