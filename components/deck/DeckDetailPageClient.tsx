@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DeckCoverArt } from "@/components/deck/DeckCoverArt";
+import { CardImageFrame } from "@/components/deck/CardImageFrame";
 import { RoomModal } from "@/components/room/RoomModal";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
 import type { Card, Deck, StatDefinition, Universe } from "@/types";
@@ -108,21 +109,12 @@ function MetaBox({ label, value, ok }: { label: string; value: string; ok: boole
 }
 
 function MiniCard({ card, stats }: { card: Card; stats: StatDefinition[] }) {
-  const [imgFailed, setImgFailed] = useState(false);
   const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
-  const showImage = imageUrl && !imgFailed;
   const statValues = new Map(card.card_stats?.map((cs) => [cs.stat_definition_id, cs.value]) ?? []);
 
   return (
     <div className="border-2 border-black bg-white overflow-hidden" style={{ boxShadow: "3px 3px 0px #0a0a0a" }}>
-      <div className="w-full border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden" style={{ height: 140 }}>
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={card.name} className="w-full h-full object-contain p-1" onError={() => setImgFailed(true)} />
-        ) : (
-          <span className="font-display text-grey-dark text-3xl select-none">{card.name[0]?.toUpperCase()}</span>
-        )}
-      </div>
+      <CardImageFrame imageUrl={imageUrl} alt={card.name} fallbackText={card.name} className="w-full h-[160px] border-b-2 border-black" />
       <div className="bg-black px-3 py-1.5 border-b border-black">
         <p className="font-display text-white leading-tight" style={{ fontSize: "0.95rem" }}>{card.name}</p>
       </div>
