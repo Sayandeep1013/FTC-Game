@@ -18,13 +18,30 @@ export interface GuestSession {
 
 // ─── Decks & Cards ────────────────────────────────────────────────────────────
 
+export interface Universe {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  cover_image_url: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  decks?: Deck[];
+}
+
 export interface Deck {
   id: string;
+  universe_id?: string | null;
   name: string;
   slug: string;
   cover_image_url: string;
   is_active: boolean;
+  display_order?: number;
+  card_count?: number;
+  stat_count?: number;
   created_at: string;
+  universe?: Universe | null;
   stat_definitions?: StatDefinition[];
   cards?: Card[];
 }

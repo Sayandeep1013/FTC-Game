@@ -57,7 +57,6 @@ export function TimerCircle({
     return () => clearInterval(interval);
   // turnKey + initialRemaining are the reset deps — intentional.
   // isActiveTurn/onExpire changes must NOT reset the timer; they're tracked via refs.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnKey, countDown, durationSeconds, initialRemaining]);
 
   const r            = (size - 6) / 2;

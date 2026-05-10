@@ -12,7 +12,12 @@ interface DeckDetailsModalProps {
 
 export function DeckDetailsModal({ deck, onClose }: DeckDetailsModalProps) {
   const stats = deck.stat_definitions?.sort((a, b) => a.display_order - b.display_order) ?? [];
-  const cards = deck.cards ?? [];
+  const rankStat = stats.find((s) => s.name.toLowerCase() === "rank") ?? stats[0];
+  const cards = [...(deck.cards ?? [])].sort((a, b) => {
+    const av = a.card_stats?.find((cs) => cs.stat_definition_id === rankStat?.id)?.value ?? Number.POSITIVE_INFINITY;
+    const bv = b.card_stats?.find((cs) => cs.stat_definition_id === rankStat?.id)?.value ?? Number.POSITIVE_INFINITY;
+    return Number(av) - Number(bv) || a.name.localeCompare(b.name);
+  });
 
   return (
     <AnimatePresence>

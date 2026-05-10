@@ -46,7 +46,7 @@ export function Header() {
           {!inRoom && (
             <nav className="hidden sm:flex items-center gap-1">
               {[
-                { href: "/decks", label: "Decks" },
+                { href: "/decks", label: "Universes" },
                 { href: "/play", label: "Play" },
                 { href: "/how-to-play", label: "How to Play" },
               ].map(({ href, label }) => (

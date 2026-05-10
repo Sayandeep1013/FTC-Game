@@ -100,6 +100,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
   } else if (room.host_player_id === player_id) {
     // Transfer host randomly
     const newHost = humanPlayers[Math.floor(Math.random() * humanPlayers.length)];
+    await supabase.from("room_players").update({ is_host: false }).eq("room_id", room.id);
     await supabase.from("rooms").update({ host_player_id: newHost.player_id }).eq("id", room.id);
     await supabase.from("room_players").update({ is_host: true }).eq("room_id", room.id).eq("player_id", newHost.player_id);
   }

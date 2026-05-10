@@ -27,7 +27,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "FTC — Fantasy Trump Cards",
-  description: "Real-time multiplayer fantasy trump card game. Pick a deck. Call your stats. Win the pile.",
+  description: "Real-time multiplayer fantasy trump card game. Pick a universe, choose a deck, call your stats, and win the pile.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

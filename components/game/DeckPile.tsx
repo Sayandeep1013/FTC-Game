@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence, type Transition } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { getDeckCoverUrl } from "@/lib/utils/imageUrl";
 
 type AnimState = "idle" | "receive" | "appear" | "give";
 
@@ -10,12 +11,20 @@ interface DeckPileProps {
   label: string;
   width?: number;
   height?: number;
+  deckSlug?: string;
+  deckCoverImageUrl?: string | null;
 }
 
-export function DeckPile({ count, label, width = 52, height = 72 }: DeckPileProps) {
+export function DeckPile({ count, label, width = 52, height = 72, deckSlug = "", deckCoverImageUrl = null }: DeckPileProps) {
   const prevCountRef = useRef(count);
   const [anim, setAnim] = useState<AnimState>("idle");
   const layers = Math.min(count, 3);
+  const backUrl = getDeckCoverUrl(deckCoverImageUrl, deckSlug);
+  const backStyle = {
+    backgroundImage: backUrl ? `url("${backUrl}")` : undefined,
+    backgroundSize: backUrl ? "cover" : undefined,
+    backgroundPosition: backUrl ? "center" : undefined,
+  };
 
   useEffect(() => {
     const prev = prevCountRef.current;
@@ -46,13 +55,13 @@ export function DeckPile({ count, label, width = 52, height = 72 }: DeckPileProp
         {layers >= 3 && (
           <div
             className="card-back-pattern border-2 border-black absolute"
-            style={{ width, height, bottom: 6, left: 4, opacity: 0.4 }}
+            style={{ width, height, bottom: 6, left: 4, opacity: 0.4, ...backStyle }}
           />
         )}
         {layers >= 2 && (
           <div
             className="card-back-pattern border-2 border-black absolute"
-            style={{ width, height, bottom: 3, left: 2, opacity: 0.65 }}
+            style={{ width, height, bottom: 3, left: 2, opacity: 0.65, ...backStyle }}
           />
         )}
 
@@ -62,7 +71,7 @@ export function DeckPile({ count, label, width = 52, height = 72 }: DeckPileProp
             <motion.div
               key="pile"
               className="card-back-pattern border-2 border-black absolute"
-              style={{ width, height, bottom: 0, left: 0 }}
+              style={{ width, height, bottom: 0, left: 0, ...backStyle }}
               animate={cardAnimate}
               transition={cardTransition}
             />

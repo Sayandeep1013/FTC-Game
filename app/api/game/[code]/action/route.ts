@@ -158,7 +158,7 @@ async function handlePickStat(roomCode: string, body: {
     await reshuffleIfNeeded(db, gs.id, activePlayers.map(p => p.player_id));
 
     // Check eliminations
-    const eliminated = await checkEliminations(db, gs.id, activePlayers);
+    const eliminated = await checkEliminations(db, gs.id, room.id, activePlayers);
 
     // Check remaining active players
     const remainingPlayerIds = activePlayers
@@ -290,7 +290,7 @@ async function reshuffleIfNeeded(db: ReturnType<typeof createAdminClient>, gameS
   }
 }
 
-async function checkEliminations(db: ReturnType<typeof createAdminClient>, gameStateId: string, activePlayers: { player_id: string }[]): Promise<string[]> {
+async function checkEliminations(db: ReturnType<typeof createAdminClient>, gameStateId: string, roomId: string, activePlayers: { player_id: string }[]): Promise<string[]> {
   const eliminated: string[] = [];
   for (const p of activePlayers) {
     const { count } = await db
@@ -305,6 +305,7 @@ async function checkEliminations(db: ReturnType<typeof createAdminClient>, gameS
       await db
         .from("room_players")
         .update({ is_eliminated: true })
+        .eq("room_id", roomId)
         .eq("player_id", p.player_id);
     }
   }

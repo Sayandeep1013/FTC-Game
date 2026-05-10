@@ -11,23 +11,28 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-
-  // Generate unique room code — just generate one and attempt insert.
-  // On collision (unique constraint), retry. No pre-check query needed.
-  const room_code = generateRoomCode();
-
-  // max_players: for AI games use ai_count+1 (human + AIs), else use the provided value
   const effectiveMaxPlayers = vs_ai ? ai_count + 1 : max_players;
+  let room: { id: string; room_code: string } | null = null;
+  let lastErr: { code?: string; message?: string } | null = null;
 
-  const { data: room, error: roomErr } = await supabase
-    .from("rooms")
-    .insert({ room_code, deck_id, host_player_id: player_id, max_players: effectiveMaxPlayers })
-    .select("id, room_code")
-    .single();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const room_code = generateRoomCode();
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({ room_code, deck_id, host_player_id: player_id, max_players: effectiveMaxPlayers })
+      .select("id, room_code")
+      .single();
 
-  if (roomErr || !room) return NextResponse.json({ error: roomErr?.message }, { status: 500 });
+    if (data) {
+      room = data;
+      break;
+    }
+    lastErr = error;
+    if (error?.code !== "23505") break;
+  }
 
-  // Add host player
+  if (!room) return NextResponse.json({ error: lastErr?.message ?? "Could not create room" }, { status: 500 });
+
   const { error: hostErr } = await supabase.from("room_players").insert({
     room_id: room.id,
     player_id,
@@ -39,7 +44,6 @@ export async function POST(req: NextRequest) {
   });
   if (hostErr) return NextResponse.json({ error: hostErr.message }, { status: 500 });
 
-  // Add AI players (supports 1-3 AIs)
   if (vs_ai && ai_count > 0) {
     const aiRows = Array.from({ length: ai_count }, (_, i) => ({
       room_id: room.id,

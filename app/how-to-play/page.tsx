@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 const STEPS = [
   {
     n: "01",
-    title: "PICK A DECK",
+    title: "PICK A UNIVERSE",
     detail: [
-      "Browse the available decks from the home page or the Decks tab.",
-      "Each deck has a theme — superheroes, cars, wrestlers, anime — and 52 unique cards.",
+      "Browse universes from the home page or the Universes tab.",
+      "Open a universe, choose a specific deck inside it, then start a room.",
       "Every card has 8 stats. Higher (or lower, for inverse stats like Rank) wins the round.",
     ],
   },
@@ -101,9 +103,9 @@ export default function HowToPlayPage() {
         {/* CTA */}
         <div className="mt-16 border-2 border-black p-6 flex flex-col sm:flex-row items-center justify-between gap-4" style={{ boxShadow: "4px 4px 0 #0a0a0a" }}>
           <p className="font-display tracking-widest text-xl">READY TO PLAY?</p>
-          <a href="/play" className="btn-brutal btn-primary px-6 py-3">
+          <Link href="/play" className="btn-brutal btn-primary px-6 py-3">
             Start a Game →
-          </a>
+          </Link>
         </div>
       </div>
     </main>

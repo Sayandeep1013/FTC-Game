@@ -26,12 +26,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (activePlayers.length !== room.max_players) return NextResponse.json({ error: "Room not full yet" }, { status: 400 });
 
   // ── 2. Fetch all card IDs for the deck ────────────────────────────────────
-  const { data: cards } = await db
+  const [{ data: cards }, { data: statDefs }] = await Promise.all([
+    db
     .from("cards")
     .select("id")
-    .eq("deck_id", room.deck_id);
+      .eq("deck_id", room.deck_id),
+    db
+      .from("stat_definitions")
+      .select("id")
+      .eq("deck_id", room.deck_id),
+  ]);
 
-  if (!cards || cards.length < 2) return NextResponse.json({ error: "Deck has no cards" }, { status: 500 });
+  if (!cards || cards.length !== 52) {
+    return NextResponse.json({ error: `Deck must have exactly 52 cards before play. Current: ${cards?.length ?? 0}` }, { status: 400 });
+  }
+  if (!statDefs || statDefs.length !== 8) {
+    return NextResponse.json({ error: `Deck must have exactly 8 stats before play. Current: ${statDefs?.length ?? 0}` }, { status: 400 });
+  }
+
+  const cardIds = cards.map(c => c.id);
+  const { count: statValueCount, error: statValueErr } = await db
+    .from("card_stats")
+    .select("id", { count: "exact", head: true })
+    .in("card_id", cardIds);
+
+  if (statValueErr) return NextResponse.json({ error: statValueErr.message }, { status: 500 });
+  if ((statValueCount ?? 0) !== cards.length * statDefs.length) {
+    return NextResponse.json({
+      error: "Every card must have a value for all 8 stats before play. Please fill missing card stats in admin.",
+    }, { status: 400 });
+  }
 
   // ── 3. Shuffle and deal ────────────────────────────────────────────────────
   const shuffled = shuffle(cards.map(c => c.id));

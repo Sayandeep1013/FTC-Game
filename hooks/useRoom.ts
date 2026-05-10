@@ -52,7 +52,7 @@ export function useRoom(roomCode: string, myPlayerId: string | null) {
     await fetch(`/api/rooms/${roomCode}/host`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ new_host_id: toPlayerId }),
+      body: JSON.stringify({ current_host_id: myPlayerId, new_host_id: toPlayerId }),
     });
   }
 

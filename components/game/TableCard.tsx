@@ -4,6 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { CardInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { getDeckCoverUrl } from "@/lib/utils/imageUrl";
 import { useEffect, useRef } from "react";
 
 interface TableCardProps {
@@ -14,6 +15,8 @@ interface TableCardProps {
   highlightStatId?: string | null;
   lockedStatId?: string | null;
   faceDown?: boolean;
+  deckSlug?: string;
+  deckCoverImageUrl?: string | null;
   label?: string;
   enterFrom?: "top" | "bottom" | "none";
   /** Show ✓ on the highlighted stat — only for the local player's card while waiting for result */
@@ -27,10 +30,11 @@ interface TableCardProps {
 export function TableCard({
   card, statDefs, isActive, onPickStat,
   highlightStatId, lockedStatId,
-  faceDown = false, label, enterFrom = "none",
+  faceDown = false, deckSlug = "", deckCoverImageUrl = null, label, enterFrom = "none",
   showCheckmark = false,
 }: TableCardProps) {
   const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
+  const backUrl = getDeckCoverUrl(deckCoverImageUrl, deckSlug);
 
   // Sort and split into 2 columns (4+4) — same as details modal
   const sorted     = [...statDefs].sort((a, b) => a.display_order - b.display_order);
@@ -163,6 +167,9 @@ export function TableCard({
               transform: "rotateY(180deg)",
               position: "absolute", inset: 0,
               boxShadow: "3px 3px 0 #0a0a0a",
+              backgroundImage: backUrl ? `url("${backUrl}")` : undefined,
+              backgroundSize: backUrl ? "cover" : undefined,
+              backgroundPosition: backUrl ? "center" : undefined,
             }}
             className="card-back-pattern border-2 border-black"
           />

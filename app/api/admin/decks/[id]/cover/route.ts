@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const storagePath = `deck-covers/${slug}.${ext}`;
+  const stamp = Date.now();
+  const storagePath = `deck-covers/${slug}-${stamp}.${ext}`;
   const supabase = createAdminClient();
 
   // Create bucket if it doesn't exist — errors only if bucket already exists (which is fine)

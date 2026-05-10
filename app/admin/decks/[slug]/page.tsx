@@ -7,11 +7,41 @@ import { getCardImageUrl } from "@/lib/utils/imageUrl";
 interface StatDef { id: string; name: string; display_name: string; is_inverse: boolean; display_order: number; }
 interface CardStat { stat_definition_id: string; value: number; }
 interface AdminCard { id: string; name: string; image_url: string | null; image_storage_path: string | null; card_stats: CardStat[]; }
+interface AdminUniverse { id: string; name: string; slug: string; }
+interface AdminDeckSummary { id: string; name: string; slug: string; universe_id: string | null; display_order: number; is_active: boolean; universe?: AdminUniverse | null; }
+
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === "\"" && inQuotes && next === "\"") {
+      cell += "\"";
+      i++;
+    } else if (char === "\"") {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  cells.push(cell.trim());
+  return cells;
+}
 
 export default function DeckEditorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [deckId, setDeckId] = useState<string>("");
   const [deckName, setDeckName] = useState("");
+  const [deck, setDeck] = useState<AdminDeckSummary | null>(null);
+  const [universes, setUniverses] = useState<AdminUniverse[]>([]);
   const [stats, setStats] = useState<StatDef[]>([]);
   const [cards, setCards] = useState<AdminCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +49,18 @@ export default function DeckEditorPage({ params }: { params: Promise<{ slug: str
 
   const load = useCallback(async () => {
     // Fetch deck info
-    const dr = await fetch("/api/admin/decks");
+    const [dr, ur] = await Promise.all([fetch("/api/admin/decks"), fetch("/api/admin/universes")]);
     const decks = await dr.json();
-    const deck = decks.find((d: { slug: string; id: string; name: string }) => d.slug === slug);
-    if (!deck) return;
-    setDeckId(deck.id);
-    setDeckName(deck.name);
+    const universeData = await ur.json();
+    const universeRows = Array.isArray(universeData) ? universeData : [];
+    const current = decks.find((d: AdminDeckSummary) => d.slug === slug);
+    if (!current) return;
+    setDeck(current);
+    setUniverses(universeRows ?? []);
+    setDeckId(current.id);
+    setDeckName(current.name);
 
-    const cr = await fetch(`/api/admin/decks/${deck.id}/cards`);
+    const cr = await fetch(`/api/admin/decks/${current.id}/cards`);
     const { stats: s, cards: c } = await cr.json();
     setStats(s);
     setCards(c);
@@ -48,6 +82,8 @@ export default function DeckEditorPage({ params }: { params: Promise<{ slug: str
         <span className="font-mono text-[9px] text-grey-dark">{stats.length} stats · {cards.length} cards</span>
       </div>
 
+      {deck && <DeckSettings deck={deck} universes={universes} onRefresh={load} />}
+
       {/* Tabs */}
       <div className="flex border-b-2 border-black mb-6">
         {(["stats", "cards"] as const).map(t => (
@@ -68,6 +104,70 @@ export default function DeckEditorPage({ params }: { params: Promise<{ slug: str
 }
 
 // ── Stats editor ──────────────────────────────────────────────────────────────
+
+function DeckSettings({ deck, universes, onRefresh }: { deck: AdminDeckSummary; universes: AdminUniverse[]; onRefresh: () => void }) {
+  const [draft, setDraft] = useState({
+    name: deck.name,
+    slug: deck.slug,
+    universe_id: deck.universe_id ?? "",
+    display_order: deck.display_order ?? 0,
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft({
+      name: deck.name,
+      slug: deck.slug,
+      universe_id: deck.universe_id ?? "",
+      display_order: deck.display_order ?? 0,
+    });
+  }, [deck]);
+
+  async function save() {
+    setSaving(true);
+    const res = await fetch(`/api/admin/decks/${deck.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      alert((await res.json()).error ?? "Could not save deck settings");
+      return;
+    }
+    onRefresh();
+  }
+
+  return (
+    <div className="border-2 border-black bg-white p-4 mb-5" style={{ boxShadow: "3px 3px 0 #0a0a0a" }}>
+      <p className="text-[9px] font-bold uppercase tracking-wider text-grey-dark mb-3">Deck Settings</p>
+      <div className="grid md:grid-cols-[1fr_1fr_1fr_100px_auto] gap-3 items-end">
+        <label className="block">
+          <span className="text-[8px] uppercase tracking-wider text-grey-dark block mb-1">Universe</span>
+          <select className="input-brutal text-xs" value={draft.universe_id} onChange={e => setDraft(d => ({ ...d, universe_id: e.target.value }))}>
+            <option value="">No universe</option>
+            {universes.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-[8px] uppercase tracking-wider text-grey-dark block mb-1">Deck Name</span>
+          <input className="input-brutal text-xs" value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+        </label>
+        <label className="block">
+          <span className="text-[8px] uppercase tracking-wider text-grey-dark block mb-1">Slug</span>
+          <input className="input-brutal text-xs font-mono" value={draft.slug} onChange={e => setDraft(d => ({ ...d, slug: e.target.value }))} />
+        </label>
+        <label className="block">
+          <span className="text-[8px] uppercase tracking-wider text-grey-dark block mb-1">Order</span>
+          <input type="number" className="input-brutal text-xs font-mono" value={draft.display_order} onChange={e => setDraft(d => ({ ...d, display_order: Number(e.target.value) }))} />
+        </label>
+        <button onClick={save} disabled={saving} className="btn-brutal btn-primary text-[9px] px-3 py-2">
+          {saving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: StatDef[]; onRefresh: () => void }) {
   const [editing, setEditing] = useState<Record<string, Partial<StatDef>>>({});
@@ -209,10 +309,10 @@ function CardsEditor({ deckId, deckSlug, stats, cards, onRefresh }: {
     const file = e.target.files?.[0]; if (!file) return;
     setImporting(true); setCsvError("");
     const text = await file.text();
-    const lines = text.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    const lines = text.replace(/\r/g, "").trim().split("\n").map(l => l.trim()).filter(Boolean);
     if (lines.length < 2) { setCsvError("CSV must have a header row + at least one card."); setImporting(false); return; }
 
-    const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
     const nameIdx = headers.indexOf("name");
     if (nameIdx === -1) { setCsvError("CSV must have a 'name' column."); setImporting(false); return; }
 
@@ -223,7 +323,7 @@ function CardsEditor({ deckId, deckSlug, stats, cards, onRefresh }: {
     }
 
     const cardRows = lines.slice(1).map(line => {
-      const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+      const cols = parseCsvLine(line);
       const statVals: Record<string, number> = {};
       for (const [sName, idx] of Object.entries(statNameToIdx)) {
         statVals[sName] = Number(cols[idx]) || 0;
@@ -317,7 +417,11 @@ function CardTile({ card, stats, deckSlug, onEdit, onDelete, onRefresh }: {
     fd.append("file", file);
     fd.append("deck_slug", deckSlug);
     fd.append("card_name", card.name);
-    await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
+    const res = await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
+    if (!res.ok) {
+      alert((await res.json()).error ?? "Image upload failed");
+      return;
+    }
     onRefresh();
   }
 
@@ -326,7 +430,10 @@ function CardTile({ card, stats, deckSlug, onEdit, onDelete, onRefresh }: {
       {/* Image */}
       <div className="relative border-b-2 border-black bg-grey-light flex items-center justify-center overflow-hidden" style={{ height: 90 }}>
         {imageUrl
-          ? <img src={imageUrl} alt={card.name} className="w-full h-full object-contain p-1" />
+          ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt={card.name} className="w-full h-full object-contain p-1" />
+          )
           : <span className="font-display text-grey-dark text-2xl">{card.name[0]?.toUpperCase()}</span>
         }
         <label className="absolute bottom-1 right-1 cursor-pointer">
@@ -410,7 +517,15 @@ function CardEditModal({ card, stats, deckSlug, onClose }: {
   const [statVals, setStatVals] = useState<Record<string, string>>(
     Object.fromEntries(stats.map(s => [s.id, String(statDefMap[s.id] ?? "")]))
   );
+  const [imageUrl, setImageUrl] = useState(() => getCardImageUrl(card.image_url, card.image_storage_path));
+  const objectUrlRef = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
 
   async function save() {
     setSaving(true);
@@ -425,14 +540,26 @@ function CardEditModal({ card, stats, deckSlug, onClose }: {
   }
 
   async function uploadImage(file: File) {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = URL.createObjectURL(file);
+    setImageUrl(objectUrlRef.current);
+
     const fd = new FormData();
     fd.append("file", file);
     fd.append("deck_slug", deckSlug);
     fd.append("card_name", name);
-    await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
-  }
+    const res = await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
+    if (!res.ok) {
+      alert((await res.json()).error ?? "Image upload failed");
+      setImageUrl(getCardImageUrl(card.image_url, card.image_storage_path));
+      return;
+    }
 
-  const imageUrl = getCardImageUrl(card.image_url, card.image_storage_path);
+    const data = await res.json();
+    if (typeof data.path === "string") {
+      setImageUrl(getCardImageUrl(null, data.path, Date.now()));
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -448,7 +575,10 @@ function CardEditModal({ card, stats, deckSlug, onClose }: {
           <div className="flex gap-4 mb-4">
             <div className="w-20 h-24 border-2 border-black bg-grey-light flex items-center justify-center overflow-hidden flex-shrink-0">
               {imageUrl
-                ? <img src={imageUrl} alt={name} className="w-full h-full object-contain p-1" />
+                ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt={name} className="w-full h-full object-contain p-1" />
+                )
                 : <span className="font-display text-grey-dark text-2xl">{name[0]?.toUpperCase()}</span>
               }
             </div>

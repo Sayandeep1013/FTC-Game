@@ -1,10 +1,10 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import type { CardInfo, PlayerHandInfo } from "@/hooks/useGame";
+import type { PlayerHandInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 interface CardDisplayProps {
   hand: PlayerHandInfo;
@@ -18,7 +18,6 @@ interface CardDisplayProps {
 
 export function CardDisplay({ hand, statDefs, isActive, selectedStatId, onPickStat, tiedStatId, compact = false }: CardDisplayProps) {
   const card = hand.top_card;
-  const [hoveredStat, setHoveredStat] = useState<string | null>(null);
 
   // Balatro-style 3D tilt on mouse move (active card only)
   const cardRef = useRef<HTMLDivElement>(null);
@@ -72,8 +71,6 @@ export function CardDisplay({ hand, statDefs, isActive, selectedStatId, onPickSt
         <div
           key={stat.id}
           className={`stat-row ${isSelected ? "selected" : ""} ${canSelect ? "cursor-pointer" : "cursor-default"} ${isLocked ? "opacity-30" : ""}`}
-          onMouseEnter={() => canSelect && setHoveredStat(stat.id)}
-          onMouseLeave={() => setHoveredStat(null)}
           onClick={() => canSelect && onPickStat(stat.id)}
           style={{ opacity: isLocked ? 0.3 : 1 }}
         >

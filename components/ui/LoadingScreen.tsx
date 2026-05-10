@@ -44,7 +44,7 @@ export function LoadingScreen({ onDone }: LoadingScreenProps) {
       if (cancelled) return;
 
       // Stage 2 — fetch the list of assets to preload
-      setLabel("Fetching deck data");
+      setLabel("Fetching universe data");
       let urls: string[] = [];
       try {
         const res = await fetch("/api/preload");

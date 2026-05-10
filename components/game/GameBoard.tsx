@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSession } from "@/hooks/useSession";
-import { useGame, type CardInfo, type PlayerHandInfo, type RoundResult } from "@/hooks/useGame";
+import { useGame, type CardInfo, type RoundResult } from "@/hooks/useGame";
 import { TableCard } from "./TableCard";
 import { DeckPile } from "./DeckPile";
 import { TimerCircle } from "./TimerCircle";
@@ -15,7 +15,17 @@ const COMPARISON_SHOW_MS = 7000;
 const TURN_ANNOUNCE_MS   = 1800;
 const TIMER_DURATION     = 15;
 
-export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: string }) {
+export function GameBoard({
+  roomCode,
+  deckName,
+  deckSlug,
+  deckCoverImageUrl,
+}: {
+  roomCode: string;
+  deckName: string;
+  deckSlug: string;
+  deckCoverImageUrl: string | null;
+}) {
   const session = useSession();
   const {
     loading, gameState, myHand, opponents, statDefs, allCards,
@@ -238,8 +248,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
               <div key={opp.player_id} className="game-player-cluster">
                 {/* Left: deck piles */}
                 <div className="game-stack-piles">
-                  <DeckPile count={displayCount(opp.player_id, "main", opp.main_count)} label="Main" width={48} height={66} />
-                  <DeckPile count={displayCount(opp.player_id, "side", opp.side_count)} label="Side" width={48} height={66} />
+                  <DeckPile count={displayCount(opp.player_id, "main", opp.main_count)} label="Main" width={48} height={66} deckSlug={deckSlug} deckCoverImageUrl={deckCoverImageUrl} />
+                  <DeckPile count={displayCount(opp.player_id, "side", opp.side_count)} label="Side" width={48} height={66} deckSlug={deckSlug} deckCoverImageUrl={deckCoverImageUrl} />
                 </div>
 
                 {/* Center: card */}
@@ -255,6 +265,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
                         card={cardToShow}
                         statDefs={statDefs}
                         faceDown={!isRevealed}
+                        deckSlug={deckSlug}
+                        deckCoverImageUrl={deckCoverImageUrl}
                         highlightStatId={isRevealed ? calledStatId : undefined}
                         enterFrom="top"
                         label={opp.room_username + (opp.is_ai ? " [CPU]" : "")}
@@ -379,8 +391,8 @@ export function GameBoard({ roomCode, deckName }: { roomCode: string; deckName: 
         <div className="game-my-half">
           {/* Left: deck piles */}
           <div className="game-stack-piles">
-            <DeckPile count={myHand ? displayCount(myHand.player_id, "main", myHand.main_count) : 0} label="Main" width={48} height={66} />
-            <DeckPile count={myHand ? displayCount(myHand.player_id, "side", myHand.side_count) : 0} label="Side" width={48} height={66} />
+            <DeckPile count={myHand ? displayCount(myHand.player_id, "main", myHand.main_count) : 0} label="Main" width={48} height={66} deckSlug={deckSlug} deckCoverImageUrl={deckCoverImageUrl} />
+            <DeckPile count={myHand ? displayCount(myHand.player_id, "side", myHand.side_count) : 0} label="Side" width={48} height={66} deckSlug={deckSlug} deckCoverImageUrl={deckCoverImageUrl} />
           </div>
 
           {/* Center: my card */}

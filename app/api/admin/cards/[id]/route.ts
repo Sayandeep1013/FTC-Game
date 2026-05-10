@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
     const safeName = cardName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const storagePath = `cards/${deckSlug}/${safeName}.${ext}`;
+    const storagePath = `cards/${deckSlug}/${safeName}-${Date.now()}.${ext}`;
 
     const supabase = createAdminClient();
     await supabase.storage.createBucket("game-assets", { public: true });

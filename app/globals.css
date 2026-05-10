@@ -591,3 +591,45 @@ body {
   .game-my-half     { gap: 18px; }
   .game-player-cluster { gap: 10px; }
 }
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes home-line-fill {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.home-rise {
+  animation: home-rise 360ms ease-out both;
+  will-change: transform;
+}
+
+.home-line-fill {
+  height: 100%;
+  transform-origin: top;
+}
+
+.universe-card {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-rise,
+  .home-line-fill {
+    animation: none;
+  }
+
+  .universe-card {
+    transition: none;
+  }
+}

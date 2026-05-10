@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </Link>
         <span className="text-grey-dark text-[10px]">|</span>
         <Link href="/admin/decks" className="text-grey-mid text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">
-          Decks
+          Universes
         </Link>
         <div className="ml-auto">
           <span className="text-grey-dark text-[9px] uppercase tracking-wider">{admin}</span>
