@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { compressImageForUpload } from "@/lib/utils/compressImage";
 
 interface StatDef { id: string; name: string; display_name: string; is_inverse: boolean; display_order: number; }
 interface CardStat { stat_definition_id: string; value: number; }
@@ -413,8 +414,9 @@ function CardTile({ card, stats, deckSlug, onEdit, onDelete, onRefresh }: {
   for (const cs of card.card_stats) statMap[cs.stat_definition_id] = cs.value;
 
   async function uploadImage(file: File) {
+    const uploadFile = await compressImageForUpload(file);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", uploadFile);
     fd.append("deck_slug", deckSlug);
     fd.append("card_name", card.name);
     const res = await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });
@@ -544,8 +546,9 @@ function CardEditModal({ card, stats, deckSlug, onClose }: {
     objectUrlRef.current = URL.createObjectURL(file);
     setImageUrl(objectUrlRef.current);
 
+    const uploadFile = await compressImageForUpload(file);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", uploadFile);
     fd.append("deck_slug", deckSlug);
     fd.append("card_name", name);
     const res = await fetch(`/api/admin/cards/${card.id}`, { method: "PATCH", body: fd });

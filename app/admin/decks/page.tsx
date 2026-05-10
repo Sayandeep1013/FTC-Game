@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DeckCoverArt } from "@/components/deck/DeckCoverArt";
 import { getDeckCoverUrl } from "@/lib/utils/imageUrl";
+import { compressImageForUpload } from "@/lib/utils/compressImage";
 
 interface AdminUniverse {
   id: string;
@@ -102,8 +103,9 @@ export default function AdminDecksPage() {
   }
 
   async function uploadUniverseCover(universe: AdminUniverse, file: File) {
+    const uploadFile = await compressImageForUpload(file);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", uploadFile);
     fd.append("slug", universe.slug);
     const res = await fetch(`/api/admin/universes/${universe.id}/cover`, { method: "POST", body: fd });
     if (!res.ok) {
@@ -132,8 +134,9 @@ export default function AdminDecksPage() {
   }
 
   async function uploadCover(deck: AdminDeck, file: File) {
+    const uploadFile = await compressImageForUpload(file);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", uploadFile);
     fd.append("slug", deck.slug);
     const res = await fetch(`/api/admin/decks/${deck.id}/cover`, { method: "POST", body: fd });
     if (!res.ok) alert((await res.json()).error ?? "Cover upload failed");
