@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 import { getPresetAvatar, getRandomPresetAvatar } from "@/lib/utils/avatar";
+import { randomUUID } from "@/lib/utils/uuid";
 
 export interface PlayerSession {
   playerId: string;
@@ -27,7 +28,7 @@ export function useSession(): PlayerSession | null {
       let id = sessionStorage.getItem("ftc_pid");
       let avatar = sessionStorage.getItem("ftc_avatar");
       if (!id) {
-        id = crypto.randomUUID();
+        id = randomUUID();
         sessionStorage.setItem("ftc_pid", id);
       }
       if (!avatar) {

@@ -337,130 +337,744 @@ body {
   transition: width 0.3s ease;
 }
 
-/* ── Game board — strictly non-scrollable, fills viewport ───────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   GAME BOARD — full-viewport, no external header/footer (GameLayoutGuard strips them)
+   All game classes are prefixed gboard- to avoid collisions.
+   Two layout modes:
+     • Desktop / tablet (default): vertical column — opp top, center band, me bottom
+     • Mobile landscape (orientation:landscape AND max-height:500px): horizontal —
+       opponents left panel | center divider | my card right
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.game-layout {
+/* Root wrapper — fills entire viewport */
+.gboard-layout {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 3.5rem);
-  max-height: calc(100dvh - 3.5rem);
+  height: 100dvh;
   overflow: hidden;
   background: var(--white);
   user-select: none;
   position: relative;
-  padding-top: 6px;
 }
 
-.game-topbar {
+/* ── HUD bar (40px) ───────────────────────────────────────────────────────── */
+.gboard-hud {
   flex-shrink: 0;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 16px;
+  padding: 0 14px;
   border-bottom: 2px solid var(--black);
   background: var(--white);
-  min-height: 42px;
+  gap: 10px;
+  z-index: 10;
 }
 
-/* ── Game body layout ───────────────────────────────────────────────────── */
+.gboard-hud-logo {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--black);
+  transition: opacity 80ms;
+}
+.gboard-hud-logo:hover { opacity: 0.6; }
 
-.game-body-v2 {
+.gboard-hud-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.gboard-hud-deck {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--grey-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.gboard-hud-sep {
+  color: var(--grey-mid);
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+
+.gboard-hud-round {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.gboard-hud-tie {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: var(--black);
+  color: var(--white);
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+/* Mobile landscape: show whose-turn text in HUD center instead of deck/round */
+.gboard-hud-turn-mobile { display: none; }
+.gboard-hud-deck-info   { display: contents; } /* desktop: show deck name + round */
+
+.gboard-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.gboard-hud-avatar {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--black);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.gboard-hud-leave {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1.5px solid var(--black);
+  padding: 3px 8px;
+  cursor: pointer;
+  background: var(--white);
+  color: var(--black);
+  transition: background 80ms, color 80ms;
+  white-space: nowrap;
+}
+.gboard-hud-leave:hover { background: var(--black); color: var(--white); }
+
+/* ── Main game body (everything below HUD) ─────────────────────────────── */
+.gboard-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 20px;
-  gap: 8px;
   overflow: hidden;
 }
 
-.game-opp-half {
-  flex: 5;
+/* ── Opponent zone ──────────────────────────────────────────────────────── */
+.gboard-opp-zone {
+  flex: 4;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  flex-wrap: wrap;
+  display: grid;
+  align-items: stretch;
+  justify-items: center;
+  padding: 10px 20px 6px;
+  gap: 12px;
 }
 
-.game-center-strip {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+/* CSS grid columns adapt to opponent count via data attribute */
+/* 1v1: single tile, centered */
+.gboard-opp-zone[data-count="1"] {
+  grid-template-columns: minmax(0, 240px);
   justify-content: center;
-  border-top: 2px solid var(--grey-light);
-  border-bottom: 2px solid var(--grey-light);
-  padding: 8px 20px;
-  min-height: 88px;
+}
+/* 3-player: two tiles pushed to opposite corners with a gap */
+.gboard-opp-zone[data-count="2"] {
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
+/* 4-player: three equal columns */
+.gboard-opp-zone[data-count="3"] { grid-template-columns: 1fr 1fr 1fr; }
 
-.game-my-half {
+/* ── Individual opponent tile ───────────────────────────────────────────── */
+.gboard-opp-tile {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--grey-light);
+  overflow: hidden;
+  position: relative;
+  transition: border-color 200ms;
+}
+
+.gboard-opp-tile--active {
+  border-color: var(--black);
+  animation: pulse-border 1.1s ease-in-out infinite;
+}
+
+.gboard-opp-tile--out {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+/* Card area inside tile — fills all available flex space */
+.gboard-opp-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: var(--grey-light);
+}
+
+/* Eliminated placeholder */
+.gboard-opp-eliminated {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--grey-light);
+}
+
+/* Empty (no-card) placeholder */
+.gboard-opp-nocard {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--grey-mid);
+  background: var(--grey-light);
+}
+
+/* Name + pile-count strip at bottom of tile */
+.gboard-opp-info {
+  flex-shrink: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--white);
+  border-top: 1.5px solid var(--grey-light);
+  gap: 6px;
+}
+
+/* Small pile badges — M:13  S:2 */
+.gboard-pile-badge {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--grey-dark);
+  white-space: nowrap;
+}
+
+.gboard-pile-badge--highlight {
+  color: var(--black);
+}
+
+/* ── Center band ───────────────────────────────────────────────────────── */
+.gboard-center-band {
+  flex-shrink: 0;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 20px;
+  border-top: 2px solid var(--grey-light);
+  border-bottom: 2px solid var(--grey-light);
+  background: var(--white);
+  transition: background 160ms, border-color 160ms;
+}
+
+.gboard-center-band--myturn {
+  background: var(--black);
+  border-color: var(--black);
+}
+
+.gboard-center-band--tie {
+  background: var(--black);
+  border-color: var(--black);
+}
+
+.gboard-center-label {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+  letter-spacing: 0.12em;
+  color: var(--black);
+  text-align: center;
+}
+
+.gboard-center-band--myturn .gboard-center-label,
+.gboard-center-band--tie .gboard-center-label {
+  color: var(--white);
+}
+
+.gboard-center-sub {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--grey-mid);
+  text-align: center;
+}
+
+.gboard-center-band--myturn .gboard-center-sub {
+  color: var(--grey-dark);
+}
+
+/* ── My zone ───────────────────────────────────────────────────────────── */
+.gboard-my-zone {
   flex: 5;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-}
-
-.game-player-cluster {
-  display: flex;
-  align-items: center;
+  padding: 6px 16px 10px;
   gap: 16px;
-  flex-shrink: 0;
 }
 
-.game-stack-piles {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.game-player-labels {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 68px;
-  max-width: 110px;
-  flex-shrink: 0;
-}
-
-/*
- * Responsive card container — fluid sizing via clamp().
- * Cards never overflow their half; they scale down on smaller screens.
- * Formula: (viewport_height - header - topbar - center_strip - gaps) / 2 = per_half_height
- * Leave 15% for labels, piles, padding.
- *
- * clamp(min, ideal, max) for width and height independently.
- */
-.game-card-wrap {
-  /* Height: 85% of each half. Half ≈ (dvh - 56px header - 38px topbar - 88px center - 36px gaps) / 2 */
-  height: clamp(170px, calc((100dvh - 218px) * 0.5 * 0.85), 260px);
-  /* Width: maintain ~0.7 aspect ratio. At max height 260px → max width 182px */
-  width:  clamp(130px, calc((100dvh - 218px) * 0.5 * 0.85 * 0.70), 182px);
+/* My card container — fluid sizing */
+.gboard-my-card-wrap {
+  /* Available vertical space: (100dvh - 40px hud - 46px band) × 5/9 × 0.88 */
+  height: clamp(200px, calc((100dvh - 86px) * 0.555 * 0.88), 360px);
+  width:  clamp(145px, calc((100dvh - 86px) * 0.555 * 0.88 * 0.65), 234px);
   flex-shrink: 0;
   position: relative;
 }
 
-/* Wider screens where height isn't the limiting factor */
-@media (min-width: 1400px) {
-  .game-card-wrap {
-    height: min(260px, calc((100dvh - 218px) * 0.5 * 0.85));
-    width:  min(182px, calc((100dvh - 218px) * 0.5 * 0.85 * 0.70));
-  }
+/* My player labels — right of card */
+.gboard-my-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 52px;
 }
 
-/* Compact on very short screens (laptops, small monitors) */
-@media (max-height: 700px) {
-  .game-body-v2     { padding: 6px 14px; gap: 5px; }
-  .game-center-strip { min-height: 72px; padding: 6px 14px; }
-  .game-opp-half    { gap: 18px; }
-  .game-my-half     { gap: 18px; }
-  .game-player-cluster { gap: 10px; }
+/* Pile display — left of card, vertical stack */
+.gboard-my-piles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Comparison overlay — slides up from bottom ────────────────────────── */
+.gboard-comparison-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px 8px;
+  gap: 10px;
+  max-height: 62vh;
+  box-shadow: 0 -4px 0 var(--black);
+}
+
+/* Drag hint bar at top of overlay */
+.gboard-comparison-drag {
+  width: 36px;
+  height: 3px;
+  background: rgba(245, 245, 240, 0.3);
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.gboard-comparison-stat {
+  flex-shrink: 0;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Horizontal row of player cards */
+.gboard-comparison-cards {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  flex-shrink: 0;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.gboard-comparison-cards::-webkit-scrollbar { display: none; }
+
+/* Individual card panel in the comparison */
+.gboard-cmp-card {
+  flex-shrink: 0;
+  width: clamp(90px, 18vw, 130px);
+  border: 2px solid rgba(245, 245, 240, 0.2);
+  background: rgba(245, 245, 240, 0.07);
+  overflow: hidden;
+}
+
+.gboard-cmp-card--winner {
+  border-color: var(--white);
+  background: rgba(245, 245, 240, 0.18);
+  box-shadow: 0 0 0 2px var(--white);
+}
+
+.gboard-cmp-img {
+  width: 100%;
+  height: clamp(55px, 10vh, 80px);
+  background: rgba(245, 245, 240, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(245, 245, 240, 0.15);
+}
+
+.gboard-comparison-result {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+/* Shrinking progress bar at bottom — auto-dismiss indicator */
+.gboard-comparison-progress {
+  width: 100%;
+  height: 2px;
+  background: rgba(245, 245, 240, 0.15);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.gboard-comparison-progress-fill {
+  height: 100%;
+  background: rgba(245, 245, 240, 0.5);
+}
+
+/* ── Short desktop screens (600–700px height) ──────────────────────────── */
+@media (max-height: 700px) and (min-width: 501px) {
+  .gboard-opp-zone { padding: 6px 14px 4px; gap: 8px; }
+  .gboard-my-zone  { padding: 4px 12px 8px; gap: 12px; }
+  .gboard-center-band { min-height: 40px; }
+  .gboard-comparison-overlay { max-height: 58vh; }
+}
+
+/* ── Mobile landscape: horizontal layout ───────────────────────────────── */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gboard-body {
+    flex-direction: row;
+  }
+
+  /* Left panel: opponents stacked vertically */
+  .gboard-opp-zone {
+    flex: 0 0 30%;
+    min-width: 0;
+    padding: 8px 8px 8px 10px;
+    border-right: 2px solid var(--grey-light);
+    gap: 6px;
+  }
+
+  /* All opponent counts: single column in landscape */
+  .gboard-opp-zone[data-count="1"],
+  .gboard-opp-zone[data-count="2"],
+  .gboard-opp-zone[data-count="3"] {
+    grid-template-columns: 1fr;
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+  }
+
+  /* Center band becomes a vertical divider strip */
+  .gboard-center-band {
+    flex: 0 0 44px;
+    min-height: unset;
+    flex-direction: column;
+    justify-content: center;
+    border-top: none;
+    border-bottom: none;
+    border-left: 2px solid var(--grey-light);
+    border-right: 2px solid var(--grey-light);
+    padding: 8px 4px;
+    gap: 8px;
+  }
+
+  .gboard-center-band--myturn,
+  .gboard-center-band--tie {
+    border-color: var(--black);
+  }
+
+  /* Hide verbose text in vertical divider — turn info lives in HUD on mobile */
+  .gboard-center-label,
+  .gboard-center-sub {
+    display: none;
+  }
+
+  /* My zone: right column */
+  .gboard-my-zone {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px 6px 8px;
+    gap: 10px;
+  }
+
+  /* My card: fills available height */
+  .gboard-my-card-wrap {
+    height: clamp(160px, calc(100dvh - 40px - 20px), 320px);
+    width:  clamp(120px, calc((100dvh - 60px) * 0.68), 220px);
+  }
+
+  /* HUD: swap deck/round for whose-turn text */
+  .gboard-hud-deck-info   { display: none; }
+  .gboard-hud-turn-mobile {
+    display: flex;
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    color: var(--black);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Comparison overlay in landscape takes more width, less height */
+  .gboard-comparison-overlay {
+    max-height: 70vh;
+    padding: 8px 16px 6px;
+  }
+
+  .gboard-my-piles { gap: 6px; }
+
+  /* Chat panel narrows on landscape mobile */
+  .gboard-chat-panel { width: min(280px, 55vw); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IN-GAME CHAT PANEL
+   Slides in from the right side. On mobile (<640px wide) it takes full width.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.gboard-chat-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(10, 10, 10, 0.45);
+  display: none; /* shown only on mobile */
+}
+
+.gboard-chat-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  background: var(--white);
+  border-left: 2px solid var(--black);
+  box-shadow: -4px 0 0 var(--black);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Chat header ── */
+.gboard-chat-header {
+  flex-shrink: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 2px solid var(--black);
+  background: var(--black);
+}
+
+.gboard-chat-close {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid rgba(245, 245, 240, 0.25);
+  color: var(--white);
+  background: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 80ms;
+}
+.gboard-chat-close:hover { background: rgba(245, 245, 240, 0.12); }
+
+/* ── Message list ── */
+.gboard-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overscroll-behavior: contain;
+}
+
+/* Individual message row */
+.gboard-chat-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 86%;
+}
+
+.gboard-chat-msg--me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.gboard-chat-msg-name {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--grey-dark);
+  padding: 0 4px;
+  margin-bottom: 1px;
+}
+
+.gboard-chat-bubble {
+  background: var(--grey-light);
+  border: 1.5px solid var(--grey-light);
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.gboard-chat-bubble--me {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+
+.gboard-chat-msg-time {
+  font-size: 0.52rem;
+  color: var(--grey-mid);
+  padding: 1px 4px;
+  font-family: var(--font-mono), monospace;
+}
+
+/* System / event message */
+.gboard-chat-system {
+  align-self: center;
+  font-size: 0.58rem;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: var(--grey-light);
+  border: 1px solid var(--grey-light);
+  text-align: center;
+}
+
+/* ── Input row ── */
+.gboard-chat-input-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  border-top: 2px solid var(--black);
+  height: 46px;
+}
+
+.gboard-chat-input {
+  flex: 1;
+  padding: 0 12px;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.82rem;
+  border: none;
+  outline: none;
+  background: var(--white);
+  color: var(--black);
+  min-width: 0;
+}
+.gboard-chat-input::placeholder { color: var(--grey-mid); }
+
+.gboard-chat-send {
+  flex-shrink: 0;
+  width: 46px;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  border-left: 2px solid var(--black);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 80ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gboard-chat-send:hover:not(:disabled) { background: var(--grey-dark); }
+.gboard-chat-send:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Chat button in HUD ── */
+.gboard-hud-chat {
+  position: relative;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1.5px solid var(--black);
+  padding: 3px 8px;
+  cursor: pointer;
+  background: var(--white);
+  color: var(--black);
+  transition: background 80ms, color 80ms;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gboard-hud-chat:hover { background: var(--black); color: var(--white); }
+.gboard-hud-chat.gboard-hud-chat--open { background: var(--black); color: var(--white); }
+
+/* Unread count badge */
+.gboard-chat-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--black);
+  color: var(--white);
+  border-radius: 8px;
+  font-size: 0.48rem;
+  font-weight: 700;
+  font-family: var(--font-mono), monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid var(--white);
+  pointer-events: none;
+}
+/* When chat button is open/dark, flip badge colours */
+.gboard-hud-chat--open .gboard-chat-badge {
+  background: var(--white);
+  color: var(--black);
+  border-color: var(--black);
+}
+
+/* ── Mobile: chat goes full-screen with backdrop ── */
+@media (max-width: 640px) {
+  .gboard-chat-panel {
+    width: 100vw;
+    border-left: none;
+    box-shadow: none;
+  }
+  .gboard-chat-backdrop { display: block; }
 }
 
 @keyframes home-rise {

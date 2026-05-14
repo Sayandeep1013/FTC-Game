@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git push *)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Hero: scaleY 1.7→1.85, clamp paddingBottom for overflow gap *)"
+      "Bash(git commit -m 'Hero: scaleY 1.7→1.85, clamp paddingBottom for overflow gap *)",
+      "Bash(mkdir -p \"d:/Projects/FTC Project/app/api/game/[code]/forfeit\" && echo \"done\")"
+    ],
+    "additionalDirectories": [
+      "d:\\Projects\\FTC Project\\app\\api\\game\\[code]"
     ]
   }
 }
