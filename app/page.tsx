@@ -4,42 +4,40 @@ import type { Universe } from "@/types";
 
 async function getPageData() {
   const supabase = await createClient();
-  const { data: deckIds } = await supabase.from("decks").select("id").eq("is_active", true);
-  const activeDeckIds = deckIds?.map((d) => d.id) ?? [];
 
-  const [{ data: universes }, { count: cardCount }] = await Promise.all([
-    supabase
-      .from("universes")
-      .select(`
-        id, name, slug, description, cover_image_url, is_active, display_order, created_at,
-        decks (
-          id, universe_id, name, slug, cover_image_url, is_active, display_order, created_at,
-          stat_definitions (count),
-          cards (count)
-        )
-      `)
-      .eq("is_active", true)
-      .eq("decks.is_active", true)
-      .order("display_order", { ascending: true })
-      .order("name")
-      .order("display_order", { referencedTable: "decks", ascending: true })
-      .order("name", { referencedTable: "decks", ascending: true }),
-    activeDeckIds.length > 0
-      ? supabase
-          .from("cards")
-          .select("id", { count: "exact", head: true })
-          .in("deck_id", activeDeckIds)
-      : Promise.resolve({ count: 0 }),
-  ]);
+  // Single query — universes with embedded decks, stat counts, and card counts
+  const { data: universes } = await supabase
+    .from("universes")
+    .select(`
+      id, name, slug, description, cover_image_url, is_active, display_order, created_at,
+      decks (
+        id, universe_id, name, slug, cover_image_url, is_active, display_order, created_at,
+        stat_definitions (count),
+        cards (count)
+      )
+    `)
+    .eq("is_active", true)
+    .eq("decks.is_active", true)
+    .order("display_order", { ascending: true })
+    .order("name")
+    .order("display_order", { referencedTable: "decks", ascending: true })
+    .order("name", { referencedTable: "decks", ascending: true });
 
   const visibleUniverses = ((universes ?? []) as unknown as Universe[])
     .map((u) => ({ ...u, decks: (u.decks ?? []).filter((d) => d.is_active) }))
     .filter((u) => (u.decks?.length ?? 0) > 0);
 
+  // Sum card counts from the already-fetched deck data — no extra round-trip needed
+  const cardCount = visibleUniverses.reduce((sum, u) =>
+    sum + (u.decks ?? []).reduce((dSum, d) => {
+      const raw = d as unknown as { cards: { count: number }[] };
+      return dSum + (raw.cards?.[0]?.count ?? 0);
+    }, 0), 0);
+
   return {
     universes: visibleUniverses,
     deckCount: visibleUniverses.reduce((sum, u) => sum + (u.decks?.length ?? 0), 0),
-    cardCount: cardCount ?? 0,
+    cardCount,
   };
 }
 

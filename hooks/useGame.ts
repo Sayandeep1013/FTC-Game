@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { StatDefinition } from "@/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +69,7 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
   const [loading, setLoading] = useState(true);
   const [raw, setRaw] = useState<FetchedState | null>(null);
   const lastFetchRef = useRef(-10000); // tracks when we last fetched, to debounce duplicates
+  const pickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // force=true bypasses debounce (used for explicit user actions like pickStat)
   const fetchAndSet = useCallback(async (force = false) => {
@@ -98,6 +99,11 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
     return () => { supabase.removeChannel(channel); };
   }, [roomCode, fetchAndSet]);
 
+  // Cancel any pending fallback fetch on unmount to avoid state updates on unmounted component
+  useEffect(() => {
+    return () => { if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current); };
+  }, []);
+
   const pickStat = useCallback(async (statId: string) => {
     if (!myPlayerId) return;
     await fetch(`/api/game/${roomCode}/action`, {
@@ -109,50 +115,67 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
     // causing the next card to appear while comparison is still supposed to be showing.
     // Instead: broadcast arrives in ~50ms + server time;
     // fallback fetch 1.2s later in case broadcast missed.
-    setTimeout(() => fetchAndSet(true), 1200);
+    if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current);
+    pickTimeoutRef.current = setTimeout(() => fetchAndSet(true), 1200);
   }, [roomCode, myPlayerId, fetchAndSet]);
 
+  // ── Memoized derived state — O(n) instead of O(n²) per render ────────────
+  // Rebuilds only when raw data changes, not on every GameBoard state update.
+  const derived = useMemo(() => {
+    if (!raw || !raw.game_state) return null;
+
+    // Pre-build stat def lookup so inner loop is O(1) instead of O(n) find()
+    const statDefById: Record<string, StatDefinition> = {};
+    for (const s of raw.stat_defs) statDefById[s.id] = s;
+
+    // Pre-build card-stats index keyed by card_id
+    const cardStatsByCard: Record<string, RawCardStat[]> = {};
+    for (const cs of raw.card_stats) {
+      (cardStatsByCard[cs.card_id] ??= []).push(cs);
+    }
+
+    // Build card lookup — now O(cards × stats_per_card) instead of O(cards × total_stats)
+    const cardMap: Record<string, CardInfo> = {};
+    for (const card of raw.cards) {
+      const stats: Record<string, number> = {};
+      for (const cs of (cardStatsByCard[card.id] ?? [])) {
+        const def = statDefById[cs.stat_definition_id];
+        if (def) stats[def.name] = Number(cs.value);
+      }
+      cardMap[card.id] = { ...card, stats };
+    }
+
+    // Build per-player hand info
+    const playerInfoMap: Record<string, PlayerHandInfo> = {};
+    for (const player of raw.players) {
+      const myCards = raw.hands.filter(h => h.player_id === player.player_id);
+      const mainCards = myCards.filter(h => h.stack_type === "main").sort((a, b) => a.position - b.position);
+      const sideCards = myCards.filter(h => h.stack_type === "side");
+      const topCardId = mainCards[0]?.card_id ?? null;
+      playerInfoMap[player.player_id] = {
+        player_id: player.player_id,
+        room_username: player.room_username,
+        avatar_url: player.avatar_url,
+        is_ai: player.is_ai,
+        is_eliminated: player.is_eliminated,
+        main_count: mainCards.length,
+        side_count: sideCards.length,
+        top_card: topCardId ? (cardMap[topCardId] ?? null) : null,
+      };
+    }
+
+    return { cardMap, playerInfoMap };
+  }, [raw]);
+
   // ── Derive computed state ─────────────────────────────────────────────────
-  if (!raw || !raw.game_state) {
+  if (!raw || !raw.game_state || !derived) {
     return { loading, gameState: null, myHand: null, opponents: [], statDefs: [], allCards: {}, isMyTurn: false, isEliminated: false, gameOver: false, gameWinnerId: null, pickStat };
   }
 
+  const { cardMap, playerInfoMap } = derived;
   const gs = raw.game_state as unknown as GameState;
   const roundData = gs.round_data ?? {};
   const lastResult = roundData.last_result as RoundResult | undefined;
-
-  // Build card lookup
-  const cardMap: Record<string, CardInfo> = {};
-  for (const card of raw.cards) {
-    const stats: Record<string, number> = {};
-    for (const cs of raw.card_stats) {
-      if (cs.card_id === card.id) {
-        const def = raw.stat_defs.find(s => s.id === cs.stat_definition_id);
-        if (def) stats[def.name] = Number(cs.value);
-      }
-    }
-    cardMap[card.id] = { ...card, stats };
-  }
-
-  // Build per-player hand info
-  const playerInfoMap: Record<string, PlayerHandInfo> = {};
-  for (const player of raw.players) {
-    const myCards = raw.hands.filter(h => h.player_id === player.player_id);
-    const mainCards = myCards.filter(h => h.stack_type === "main").sort((a, b) => a.position - b.position);
-    const sideCards = myCards.filter(h => h.stack_type === "side");
-    const topCardId = mainCards[0]?.card_id ?? null;
-
-    playerInfoMap[player.player_id] = {
-      player_id: player.player_id,
-      room_username: player.room_username,
-      avatar_url: player.avatar_url,
-      is_ai: player.is_ai,
-      is_eliminated: player.is_eliminated,
-      main_count: mainCards.length,
-      side_count: sideCards.length,
-      top_card: topCardId ? (cardMap[topCardId] ?? null) : null,
-    };
-  }
 
   const allPlayers = Object.values(playerInfoMap);
   const myHand = myPlayerId ? (playerInfoMap[myPlayerId] ?? null) : null;

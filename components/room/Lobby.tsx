@@ -103,6 +103,24 @@ export function Lobby({ roomCode, deck }: LobbyProps) {
     );
   }
 
+  if (room.status === "finished") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="panel-brutal max-w-sm w-full text-center">
+          <div className="bg-black px-5 py-4 border-b-2 border-black">
+            <p className="font-display text-white text-2xl tracking-widest">GAME OVER</p>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-grey-dark mb-6">This game has already ended. Start a new one?</p>
+            <button className="btn-brutal btn-primary w-full" onClick={() => router.push("/")}>
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Join prompt (visitor not yet in room) ─────────────────────────────────
   if (!amInRoom) {
     async function handleJoin() {
@@ -419,8 +437,9 @@ function Badge({ label, dark, muted }: { label: string; dark?: boolean; muted?: 
 }
 
 function PlayerAvatar({ player }: { player: RoomPlayer }) {
-  const isGuest = player.avatar_url?.includes("guest-") || player.avatar_url?.includes("avatar-0");
   const isGooglePhoto = player.avatar_url?.startsWith("http");
+  // Local path: guest SVGs (/avatars/guest-*.svg) or any other /avatars/* asset
+  const isLocalPath = !isGooglePhoto && player.avatar_url?.startsWith("/");
 
   return (
     <div className="w-9 h-9 border-2 border-black overflow-hidden flex-shrink-0 bg-grey-light flex items-center justify-center">
@@ -431,8 +450,8 @@ function PlayerAvatar({ player }: { player: RoomPlayer }) {
         </svg>
       ) : isGooglePhoto ? (
         <Image src={player.avatar_url!} alt={player.room_username} width={36} height={36} className="object-cover w-full h-full" />
-      ) : isGuest ? (
-        // SVG line-art guest avatar — use img tag for local SVGs
+      ) : isLocalPath ? (
+        // Local SVG/PNG avatar — use img tag (Next Image doesn't handle local public SVGs well)
         // eslint-disable-next-line @next/next/no-img-element
         <img src={player.avatar_url!} alt={player.room_username} className="w-full h-full p-1" />
       ) : (

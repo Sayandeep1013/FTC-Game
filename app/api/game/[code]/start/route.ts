@@ -108,7 +108,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   // ── 5. Insert player hands ────────────────────────────────────────────────
   const { error: handsErr } = await db.from("player_hands").insert(handRows);
-  if (handsErr) return NextResponse.json({ error: handsErr.message }, { status: 500 });
+  if (handsErr) {
+    // Clean up the orphaned game_state so the room isn't permanently broken
+    await db.from("game_states").delete().eq("id", gameState.id);
+    return NextResponse.json({ error: handsErr.message }, { status: 500 });
+  }
 
   // ── 6. Mark room as playing + set phase to stat_selection ─────────────────
   await Promise.all([

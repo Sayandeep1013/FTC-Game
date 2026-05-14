@@ -124,7 +124,6 @@ export interface GameState {
   phase: GamePhase;
   called_stat_id: string | null; // which stat was called this round
   winner_player_id: string | null; // winner of current round (set after comparison)
-  status: "active" | "finished";
   created_at: string;
   updated_at: string;
 }

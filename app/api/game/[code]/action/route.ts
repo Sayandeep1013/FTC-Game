@@ -52,19 +52,12 @@ async function handlePickStat(roomCode: string, body: {
     return NextResponse.json({ error: "Must use the same stat for tie continuation" }, { status: 400 });
   }
 
-  // ── Fetch stat definition ────────────────────────────────────────────────
-  const { data: statDef } = await db
-    .from("stat_definitions")
-    .select("id, name, is_inverse")
-    .eq("id", stat_id)
-    .single();
+  // ── Fetch stat definition + active players in parallel ──────────────────
+  const [{ data: statDef }, { data: roomPlayers }] = await Promise.all([
+    db.from("stat_definitions").select("id, name, is_inverse").eq("id", stat_id).single(),
+    db.from("room_players").select("player_id, is_ai, is_eliminated").eq("room_id", room.id),
+  ]);
   if (!statDef) return NextResponse.json({ error: "Invalid stat" }, { status: 400 });
-
-  // ── Get active (non-eliminated) players ─────────────────────────────────
-  const { data: roomPlayers } = await db
-    .from("room_players")
-    .select("player_id, is_ai, is_eliminated")
-    .eq("room_id", room.id);
 
   const activePlayers = (roomPlayers ?? []).filter(p => !p.is_eliminated);
   // In a tie, only the tied players participate
@@ -272,21 +265,31 @@ async function reshuffleIfNeeded(db: ReturnType<typeof createAdminClient>, gameS
 
     const { data: sideCards } = await db
       .from("player_hands")
-      .select("id, card_id")
+      .select("card_id")
       .eq("game_state_id", gameStateId)
       .eq("player_id", pid)
       .eq("stack_type", "side");
 
     if (!sideCards || sideCards.length === 0) continue;
 
-    // Shuffle side deck → new main deck
-    const shuffledIds = shuffle(sideCards.map(c => c.id));
-    for (let i = 0; i < shuffledIds.length; i++) {
-      await db
-        .from("player_hands")
-        .update({ stack_type: "main", position: i })
-        .eq("id", shuffledIds[i]);
-    }
+    const shuffledCardIds = shuffle(sideCards.map(c => c.card_id));
+
+    // Batch: delete all side cards, re-insert as shuffled main deck (2 calls instead of N)
+    await db.from("player_hands")
+      .delete()
+      .eq("game_state_id", gameStateId)
+      .eq("player_id", pid)
+      .eq("stack_type", "side");
+
+    await db.from("player_hands").insert(
+      shuffledCardIds.map((cardId, i) => ({
+        game_state_id: gameStateId,
+        player_id: pid,
+        card_id: cardId,
+        stack_type: "main",
+        position: i,
+      }))
+    );
   }
 }
 
@@ -316,13 +319,25 @@ async function updatePlayerStats(db: ReturnType<typeof createAdminClient>, allPl
   // Only update logged-in users (UUIDs from Supabase auth)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const authPlayerIds = allPlayerIds.filter(id => uuidRegex.test(id) && !id.startsWith("ai-"));
+  if (authPlayerIds.length === 0) return;
 
-  for (const pid of authPlayerIds) {
-    const updates: Record<string, unknown> = {};
-    const { data: profile } = await db.from("profiles").select("total_games, total_wins").eq("id", pid).maybeSingle();
-    if (!profile) continue;
-    updates.total_games = (profile.total_games ?? 0) + 1;
-    if (pid === winnerId) updates.total_wins = (profile.total_wins ?? 0) + 1;
-    await db.from("profiles").update(updates).eq("id", pid);
-  }
+  // Fetch all profiles in one query, then update in parallel
+  const { data: profiles } = await db
+    .from("profiles")
+    .select("id, total_games, total_wins")
+    .in("id", authPlayerIds);
+
+  if (!profiles || profiles.length === 0) return;
+
+  await Promise.all(
+    profiles.map(profile => {
+      const updates: Record<string, number> = {
+        total_games: (profile.total_games ?? 0) + 1,
+      };
+      if (profile.id === winnerId) {
+        updates.total_wins = (profile.total_wins ?? 0) + 1;
+      }
+      return db.from("profiles").update(updates).eq("id", profile.id);
+    })
+  );
 }

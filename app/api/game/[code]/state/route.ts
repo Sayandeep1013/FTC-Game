@@ -12,17 +12,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ code: 
     .single();
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-  const [{ data: gs }, { data: players }, { data: hands }] = await Promise.all([
-    db.from("game_states").select("*").eq("room_id", room.id).single(),
+  // Fetch game state first so we have its id for the player_hands query
+  const { data: gs } = await db.from("game_states").select("*").eq("room_id", room.id).single();
+
+  // Then fetch room_players and player_hands in parallel (player_hands needs gs.id)
+  const [{ data: players }, { data: hands }] = await Promise.all([
     db.from("room_players").select("*").eq("room_id", room.id),
-    db.from("game_states")
-      .select("id")
-      .eq("room_id", room.id)
-      .single()
-      .then(async ({ data: g }) => {
-        if (!g) return { data: [] };
-        return db.from("player_hands").select("*").eq("game_state_id", g.id);
-      }),
+    gs
+      ? db.from("player_hands").select("*").eq("game_state_id", gs.id)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 
   // Fetch deck + cards + stats for the game
