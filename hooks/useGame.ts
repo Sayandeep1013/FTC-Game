@@ -60,7 +60,7 @@ export interface UseGameReturn {
   isEliminated: boolean;
   gameOver: boolean;
   gameWinnerId: string | null;
-  pickStat: (statId: string) => Promise<void>;
+  pickStat: (statId: string) => Promise<boolean>; // true = sent OK, false = network error
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,19 +104,36 @@ export function useGame(roomCode: string, myPlayerId: string | null): UseGameRet
     return () => { if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current); };
   }, []);
 
-  const pickStat = useCallback(async (statId: string) => {
-    if (!myPlayerId) return;
-    await fetch(`/api/game/${roomCode}/action`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "pick_stat", player_id: myPlayerId, stat_id: statId }),
-    });
+  const pickStat = useCallback(async (statId: string): Promise<boolean> => {
+    if (!myPlayerId) return false;
+
+    try {
+      const res = await fetch(`/api/game/${roomCode}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "pick_stat", player_id: myPlayerId, stat_id: statId }),
+      });
+      if (!res.ok) {
+        // Server rejected the pick (e.g. not your turn, already processed)
+        // Sync state quickly so the UI reflects reality
+        if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current);
+        pickTimeoutRef.current = setTimeout(() => fetchAndSet(true), 400);
+        return false;
+      }
+    } catch {
+      // Network failure (mobile signal loss, request aborted, etc.)
+      // Schedule a fast state sync so the board stays fresh without a crash
+      if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current);
+      pickTimeoutRef.current = setTimeout(() => fetchAndSet(true), 800);
+      return false;
+    }
+
     // Do NOT fetchAndSet(true) here — that would load next-turn state before showResult fires,
     // causing the next card to appear while comparison is still supposed to be showing.
-    // Instead: broadcast arrives in ~50ms + server time;
-    // fallback fetch 1.2s later in case broadcast missed.
+    // Instead: broadcast arrives in ~50ms; fallback fetch 1.2s later in case broadcast missed.
     if (pickTimeoutRef.current) clearTimeout(pickTimeoutRef.current);
     pickTimeoutRef.current = setTimeout(() => fetchAndSet(true), 1200);
+    return true;
   }, [roomCode, myPlayerId, fetchAndSet]);
 
   // ── Memoized derived state — O(n) instead of O(n²) per render ────────────

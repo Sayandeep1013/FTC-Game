@@ -216,16 +216,31 @@ export function GameBoard({
     setMyPickedStatId(stat.id);
     setIsPicking(true);
     comparingRef.current = true;
-    pickStat(stat.id);
+    pickStat(stat.id).then(ok => {
+      if (!ok) {
+        // Network failure — unfreeze so the timer can fire again on reconnect
+        setIsPicking(false);
+        setMyPlayedCard(null);
+        setMyPickedStatId(null);
+        comparingRef.current = false;
+      }
+    });
   }, [isMyTurn, showResult, gameState?.phase, statDefs, isTieActive, tiedStatId, myCurrentTopCard, pickStat]);
 
-  function handlePickStat(statId: string) {
+  async function handlePickStat(statId: string) {
     setMyPlayedCard(myCurrentTopCard);
     setMyPickedStatId(statId);
     setIsPicking(true);
     comparingRef.current = true;
     setTurnBanner(null);
-    pickStat(statId);
+    const ok = await pickStat(statId);
+    if (!ok) {
+      // Network failure — unfreeze the card so the player can retry
+      setIsPicking(false);
+      setMyPlayedCard(null);
+      setMyPickedStatId(null);
+      comparingRef.current = false;
+    }
   }
 
   function openDeckBrowser() {
