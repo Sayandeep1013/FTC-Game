@@ -12,14 +12,24 @@ export function Footer() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.2.0";
+
   return (
     <footer className="border-t-2 border-black bg-white">
       <div
         className="max-w-6xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4 flex-wrap"
         style={{ minHeight: 56 }}
       >
-        {/* Name */}
-        <span className="font-display tracking-widest text-sm">SAYANDEEP MONDAL</span>
+        {/* Name + version */}
+        <div className="flex items-center gap-2.5">
+          <span className="font-display tracking-widest text-sm">SAYANDEEP MONDAL</span>
+          <span
+            className="font-mono text-[9px] font-bold border border-black px-1.5 py-0.5 text-grey-dark"
+            title={`FTC v${appVersion}`}
+          >
+            v{appVersion}
+          </span>
+        </div>
 
         {/* Right: contacts + support */}
         <div className="flex items-center gap-1 sm:gap-2">
