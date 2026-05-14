@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "predev": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(_){}\"",
     "build": "next build",
+    "prebuild": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(_){}\"",
     "start": "next start",
     "lint": "next lint",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "db:migrate": "node --env-file=.env.local supabase/run-migrations.mjs",
     "db:seed": "node --env-file=.env.local supabase/seed/seed.mjs"
   },
