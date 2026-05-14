@@ -912,12 +912,15 @@ body {
 /* ── Message list ── */
 .gboard-chat-messages {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;              /* critical: lets flex child shrink so overflow actually fires */
+  overflow-y: scroll;         /* scroll (not auto) for reliable iOS Safari behaviour */
+  -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 
 /* Individual message row */
@@ -1075,6 +1078,48 @@ body {
     box-shadow: none;
   }
   .gboard-chat-backdrop { display: block; }
+}
+
+/* ── Chat notification toast ──────────────────────────────────────────────── */
+/* Slides in from the right just below the HUD when a message arrives
+   and the chat panel is closed. Click to open chat, ✕ to dismiss. */
+.gboard-chat-notif {
+  position: fixed;
+  top: 50px;           /* 40px HUD + 10px gap */
+  right: 14px;
+  z-index: 50;
+  background: var(--black);
+  color: var(--white);
+  border: 2px solid var(--black);
+  box-shadow: 4px 4px 0 var(--grey-dark);
+  padding: 8px 10px 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  max-width: 240px;
+  min-width: 160px;
+  user-select: none;
+  transition: opacity 80ms;
+}
+.gboard-chat-notif:hover { opacity: 0.88; }
+
+/* Auto-shrink progress line at the bottom of the toast */
+.gboard-chat-notif-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(245, 245, 240, 0.4);
+}
+
+/* Mobile portrait: stretch edge-to-edge so it's easy to tap */
+@media (max-width: 640px) {
+  .gboard-chat-notif {
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
 }
 
 @keyframes home-rise {

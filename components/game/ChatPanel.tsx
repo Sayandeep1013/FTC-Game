@@ -14,12 +14,14 @@ interface ChatPanelProps {
 export function ChatPanel({ messages, myPlayerId, onSend, onClose }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const bottomRef  = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLInputElement>(null);
+  const listRef  = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to latest message
+  // Scroll to bottom on new message — scrollTop is more reliable than scrollIntoView on mobile
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // Focus input when panel opens
@@ -71,8 +73,8 @@ export function ChatPanel({ messages, myPlayerId, onSend, onClose }: ChatPanelPr
           <button className="gboard-chat-close" onClick={onClose} title="Close chat">✕</button>
         </div>
 
-        {/* Message list */}
-        <div className="gboard-chat-messages scrollbar-brutal">
+        {/* Message list — ref used for direct scrollTop control (more reliable on iOS) */}
+        <div ref={listRef} className="gboard-chat-messages scrollbar-brutal">
           <AnimatePresence initial={false}>
             {messages.length === 0 ? (
               <motion.p
@@ -130,7 +132,6 @@ export function ChatPanel({ messages, myPlayerId, onSend, onClose }: ChatPanelPr
               })
             )}
           </AnimatePresence>
-          <div ref={bottomRef} />
         </div>
 
         {/* Input row */}

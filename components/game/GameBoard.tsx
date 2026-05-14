@@ -9,6 +9,7 @@ import { GameHUD } from "./GameHUD";
 import { OpponentTile } from "./OpponentTile";
 import { ComparisonOverlay } from "./ComparisonOverlay";
 import { ChatPanel } from "./ChatPanel";
+import { ChatNotification } from "./ChatNotification";
 import { TableCard } from "./TableCard";
 import { DeckPile } from "./DeckPile";
 import { WinLoseModal } from "./WinLoseModal";
@@ -57,6 +58,7 @@ export function GameBoard({
   const [leavePending, setLeavePending]       = useState(false);
   const [chatOpen, setChatOpen]               = useState(false);
   const [unreadCount, setUnreadCount]         = useState(0);
+  const [notification, setNotification]       = useState<import("@/hooks/useChat").ChatMessage | null>(null);
 
   // ── Chat ────────────────────────────────────────────────────────────────
   const myUsername = myHand?.room_username ?? session?.playerId?.slice(0, 6) ?? "Guest";
@@ -90,15 +92,25 @@ export function GameBoard({
   const currentTurnName  = playerNameMap[gameState?.current_turn_player_id ?? ""] ?? "?";
   const winnerName       = allPlayers.find(p => p.player_id === gameWinnerId)?.room_username ?? "Player";
 
-  // ── Unread chat counter — increment when panel is closed ─────────────
+  // ── Unread counter + toast notification when chat is closed ──────────
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
     const total = chatMessages.length;
-    if (total > prevMsgCountRef.current && !chatOpen) {
-      setUnreadCount(c => c + (total - prevMsgCountRef.current));
+    if (total > prevMsgCountRef.current) {
+      if (!chatOpen) {
+        const newMsgs = chatMessages.slice(prevMsgCountRef.current);
+        setUnreadCount(c => c + newMsgs.length);
+        // Toast: last non-system message from someone else
+        const fromOther = newMsgs.filter(
+          m => m.player_id !== session?.playerId && !m.isSystem
+        );
+        if (fromOther.length > 0) {
+          setNotification(fromOther[fromOther.length - 1]);
+        }
+      }
     }
     prevMsgCountRef.current = total;
-  }, [chatMessages.length, chatOpen]);
+  }, [chatMessages, chatOpen, session?.playerId]);
 
   // ── Snapshot deck counts before each round resolves ───────────────────
   useEffect(() => {
@@ -225,7 +237,10 @@ export function GameBoard({
   // ── Chat toggle ────────────────────────────────────────────────────────
   function toggleChat() {
     setChatOpen(o => {
-      if (!o) setUnreadCount(0); // reset badge when opening
+      if (!o) {
+        setUnreadCount(0);     // reset badge when opening
+        setNotification(null); // clear toast when opening
+      }
       return !o;
     });
   }
@@ -509,6 +524,17 @@ export function GameBoard({
             myPlayerId={session.playerId}
             onSend={sendChatMessage}
             onClose={toggleChat}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Chat notification toast ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {notification && !chatOpen && (
+          <ChatNotification
+            message={notification}
+            onDismiss={() => setNotification(null)}
+            onOpen={toggleChat}
           />
         )}
       </AnimatePresence>
