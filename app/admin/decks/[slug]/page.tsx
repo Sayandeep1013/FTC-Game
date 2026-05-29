@@ -4,8 +4,9 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
 import { compressImageForUpload } from "@/lib/utils/compressImage";
+import { formatStatValue, heightPartsFromValue, heightValueFromParts, type StatValueFormat } from "@/lib/utils/statFormat";
 
-interface StatDef { id: string; name: string; display_name: string; is_inverse: boolean; display_order: number; }
+interface StatDef { id: string; name: string; display_name: string; unit_label: string; value_format: StatValueFormat; is_inverse: boolean; display_order: number; }
 interface CardStat { stat_definition_id: string; value: number; }
 interface AdminCard { id: string; name: string; image_url: string | null; image_storage_path: string | null; card_stats: CardStat[]; }
 interface AdminUniverse { id: string; name: string; slug: string; }
@@ -35,6 +36,19 @@ function parseCsvLine(line: string): string[] {
 
   cells.push(cell.trim());
   return cells;
+}
+
+function defaultStatMeta(name: string): { unit_label: string; value_format: StatValueFormat } {
+  switch (name.toLowerCase().trim()) {
+    case "height":
+      return { unit_label: "ft/in", value_format: "height_ft_in" };
+    case "weight":
+      return { unit_label: "kg", value_format: "unit" };
+    case "speed":
+      return { unit_label: "km/h", value_format: "unit" };
+    default:
+      return { unit_label: "", value_format: "number" };
+  }
 }
 
 export default function DeckEditorPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -173,7 +187,7 @@ function DeckSettings({ deck, universes, onRefresh }: { deck: AdminDeckSummary; 
 function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: StatDef[]; onRefresh: () => void }) {
   const [editing, setEditing] = useState<Record<string, Partial<StatDef>>>({});
   const [adding, setAdding] = useState(false);
-  const [newStat, setNewStat] = useState({ name: "", display_name: "", is_inverse: false, display_order: stats.length + 1 });
+  const [newStat, setNewStat] = useState({ name: "", display_name: "", unit_label: "", value_format: "number" as StatValueFormat, is_inverse: false, display_order: stats.length + 1 });
   const [saving, setSaving] = useState(false);
 
   async function saveStat(stat: StatDef) {
@@ -205,7 +219,7 @@ function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: Stat
       body: JSON.stringify([newStat]),
     });
     setAdding(false);
-    setNewStat({ name: "", display_name: "", is_inverse: false, display_order: stats.length + 2 });
+    setNewStat({ name: "", display_name: "", unit_label: "", value_format: "number", is_inverse: false, display_order: stats.length + 2 });
     setSaving(false);
     onRefresh();
   }
@@ -219,10 +233,12 @@ function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: Stat
 
       <div className="border-2 border-black" style={{ boxShadow: "4px 4px 0 #0a0a0a" }}>
         {/* Header row */}
-        <div className="grid bg-black text-white text-[8px] font-bold uppercase tracking-wider" style={{ gridTemplateColumns: "40px 1fr 1fr 80px 60px 80px" }}>
+        <div className="grid bg-black text-white text-[8px] font-bold uppercase tracking-wider" style={{ gridTemplateColumns: "40px 1fr 1fr 90px 110px 80px 60px 80px" }}>
           <div className="px-3 py-2 border-r border-grey-dark">#</div>
           <div className="px-3 py-2 border-r border-grey-dark">Internal Name</div>
           <div className="px-3 py-2 border-r border-grey-dark">Display Name</div>
+          <div className="px-3 py-2 border-r border-grey-dark">Unit</div>
+          <div className="px-3 py-2 border-r border-grey-dark">Format</div>
           <div className="px-3 py-2 border-r border-grey-dark text-center">Lower Wins</div>
           <div className="px-3 py-2 border-r border-grey-dark text-center">Order</div>
           <div className="px-3 py-2 text-center">Actions</div>
@@ -232,13 +248,23 @@ function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: Stat
           const e = editing[stat.id] ?? {};
           const changed = Object.keys(e).length > 0;
           return (
-            <div key={stat.id} className={`grid border-t border-grey-light text-sm ${i % 2 === 0 ? "bg-white" : "bg-grey-light"}`} style={{ gridTemplateColumns: "40px 1fr 1fr 80px 60px 80px" }}>
+            <div key={stat.id} className={`grid border-t border-grey-light text-sm ${i % 2 === 0 ? "bg-white" : "bg-grey-light"}`} style={{ gridTemplateColumns: "40px 1fr 1fr 90px 110px 80px 60px 80px" }}>
               <div className="px-3 py-2 border-r border-grey-light font-mono text-[10px] text-grey-dark flex items-center">{stat.display_order}</div>
               <div className="px-2 py-1 border-r border-grey-light">
                 <input className="w-full text-xs font-mono bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.name} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], name: v.target.value } }))} />
               </div>
               <div className="px-2 py-1 border-r border-grey-light">
                 <input className="w-full text-xs bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.display_name} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], display_name: v.target.value } }))} />
+              </div>
+              <div className="px-2 py-1 border-r border-grey-light">
+                <input className="w-full text-xs bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.unit_label ?? ""} placeholder="kg" onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], unit_label: v.target.value } }))} />
+              </div>
+              <div className="px-2 py-1 border-r border-grey-light">
+                <select className="w-full text-[10px] bg-transparent outline-none border-b border-transparent focus:border-black px-1" defaultValue={stat.value_format ?? "number"} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], value_format: v.target.value as StatValueFormat } }))}>
+                  <option value="number">Number</option>
+                  <option value="unit">Unit</option>
+                  <option value="height_ft_in">Ft/In</option>
+                </select>
               </div>
               <div className="px-3 py-2 border-r border-grey-light flex items-center justify-center">
                 <input type="checkbox" defaultChecked={stat.is_inverse} onChange={v => setEditing(e2 => ({ ...e2, [stat.id]: { ...e2[stat.id], is_inverse: v.target.checked } }))} />
@@ -268,11 +294,26 @@ function StatsEditor({ deckId, stats, onRefresh }: { deckId: string; stats: Stat
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Internal Name <span className="text-grey-mid">(e.g. strength)</span></label>
-              <input className="input-brutal text-xs font-mono" value={newStat.name} onChange={e => setNewStat(s => ({ ...s, name: e.target.value.toLowerCase().replace(/\s+/g, "_") }))} required placeholder="strength" />
+              <input className="input-brutal text-xs font-mono" value={newStat.name} onChange={e => {
+                const name = e.target.value.toLowerCase().replace(/\s+/g, "_");
+                setNewStat(s => ({ ...s, name, ...defaultStatMeta(name) }));
+              }} required placeholder="strength" />
             </div>
             <div>
               <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Display Name <span className="text-grey-mid">(e.g. Strength)</span></label>
               <input className="input-brutal text-xs" value={newStat.display_name} onChange={e => setNewStat(s => ({ ...s, display_name: e.target.value }))} required placeholder="Strength" />
+            </div>
+            <div>
+              <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Unit <span className="text-grey-mid">(e.g. kg)</span></label>
+              <input className="input-brutal text-xs font-mono" value={newStat.unit_label} onChange={e => setNewStat(s => ({ ...s, unit_label: e.target.value }))} placeholder="kg" />
+            </div>
+            <div>
+              <label className="text-[8px] text-grey-dark uppercase tracking-wider block mb-1">Value Format</label>
+              <select className="input-brutal text-xs" value={newStat.value_format} onChange={e => setNewStat(s => ({ ...s, value_format: e.target.value as StatValueFormat }))}>
+                <option value="number">Number</option>
+                <option value="unit">Number + Unit</option>
+                <option value="height_ft_in">Height: ft/in</option>
+              </select>
             </div>
           </div>
           <div className="flex items-center gap-6 mb-3">
@@ -456,7 +497,7 @@ function CardTile({ card, stats, deckSlug, onEdit, onDelete, onRefresh }: {
         {stats.slice(0, 4).map(s => (
           <div key={s.id} className="flex justify-between text-[8px]">
             <span className="text-grey-dark uppercase tracking-wide">{s.display_name}</span>
-            <span className="font-mono font-bold">{statMap[s.id] ?? "—"}</span>
+            <span className="font-mono font-bold">{formatStatValue(statMap[s.id], s)}</span>
           </div>
         ))}
       </div>
@@ -496,10 +537,12 @@ function AddCardForm({ deckId, stats, onDone }: { deckId: string; stats: StatDef
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         {stats.map(s => (
-          <div key={s.id}>
-            <label className="text-[7px] text-grey-dark uppercase tracking-wider block mb-0.5">{s.display_name}</label>
-            <input type="number" className="input-brutal text-xs font-mono py-1" value={statVals[s.name] ?? ""} onChange={e => setStatVals(v => ({ ...v, [s.name]: e.target.value }))} placeholder="0" />
-          </div>
+          <StatValueInput
+            key={s.id}
+            stat={s}
+            value={statVals[s.name] ?? ""}
+            onChange={value => setStatVals(v => ({ ...v, [s.name]: value }))}
+          />
         ))}
       </div>
       <div className="flex gap-2">
@@ -507,6 +550,68 @@ function AddCardForm({ deckId, stats, onDone }: { deckId: string; stats: StatDef
         <button type="button" onClick={onDone} className="btn-brutal btn-secondary text-xs px-4 py-2">Cancel</button>
       </div>
     </form>
+  );
+}
+
+function StatValueInput({ stat, value, onChange, note }: {
+  stat: StatDef;
+  value: string;
+  onChange: (value: string) => void;
+  note?: string;
+}) {
+  const label = (
+    <label className="text-[7px] text-grey-dark uppercase tracking-wider block mb-0.5">
+      {stat.display_name}
+      {stat.unit_label && stat.value_format !== "height_ft_in" && <span className="text-grey-mid"> ({stat.unit_label})</span>}
+      {note && <span className="text-grey-mid"> ({note})</span>}
+    </label>
+  );
+
+  if (stat.value_format === "height_ft_in") {
+    const parts = heightPartsFromValue(value);
+    return (
+      <div>
+        {label}
+        <div className="grid grid-cols-2 gap-1">
+          <label className="flex items-center gap-1">
+            <input
+              type="number"
+              min={0}
+              className="input-brutal text-xs font-mono py-1"
+              value={parts.feet}
+              onChange={e => onChange(String(heightValueFromParts(e.target.value, parts.inches)))}
+              placeholder="ft"
+            />
+            <span className="text-[8px] font-bold uppercase text-grey-dark">ft</span>
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="number"
+              min={0}
+              max={11}
+              className="input-brutal text-xs font-mono py-1"
+              value={parts.inches}
+              onChange={e => onChange(String(heightValueFromParts(parts.feet, e.target.value)))}
+              placeholder="in"
+            />
+            <span className="text-[8px] font-bold uppercase text-grey-dark">in</span>
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {label}
+      <input
+        type="number"
+        className="input-brutal text-xs font-mono py-1"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="0"
+      />
+    </div>
   );
 }
 
@@ -601,17 +706,13 @@ function CardEditModal({ card, stats, deckSlug, onClose }: {
           <p className="text-[8px] font-bold uppercase tracking-wider text-grey-dark mb-2">Stat Values</p>
           <div className="grid grid-cols-2 gap-2 mb-4">
             {stats.map(s => (
-              <div key={s.id}>
-                <label className="text-[7px] text-grey-dark uppercase tracking-wider block mb-0.5">
-                  {s.display_name} {s.is_inverse && <span className="text-grey-mid">(lower wins)</span>}
-                </label>
-                <input
-                  type="number"
-                  className="input-brutal text-xs font-mono py-1"
-                  value={statVals[s.id] ?? ""}
-                  onChange={e => setStatVals(v => ({ ...v, [s.id]: e.target.value }))}
-                />
-              </div>
+              <StatValueInput
+                key={s.id}
+                stat={s}
+                value={statVals[s.id] ?? ""}
+                onChange={value => setStatVals(v => ({ ...v, [s.id]: value }))}
+                note={s.is_inverse ? "lower wins" : undefined}
+              />
             ))}
           </div>
 

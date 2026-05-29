@@ -15,7 +15,7 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
       *,
       deck:deck_id (
         id, name, slug, cover_image_url, is_active, created_at,
-        stat_definitions (id, deck_id, name, display_name, is_inverse, display_order)
+        stat_definitions (id, deck_id, name, display_name, unit_label, value_format, is_inverse, display_order)
       )
     `)
     .eq("room_code", roomCode)

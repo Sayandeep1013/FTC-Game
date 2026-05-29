@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { CardInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 import { TimerCircle } from "./TimerCircle";
 
 interface DeckBrowserModalProps {
@@ -153,7 +154,7 @@ function BrowserMiniCard({ card, stats }: { card: CardInfo; stats: StatDefinitio
               {stat.display_name}
             </span>
             <span className="font-mono text-xs font-bold text-black leading-tight mt-0.5">
-              {card.stats[stat.name] ?? "—"}
+              {formatStatValue(card.stats[stat.name], stat)}
             </span>
           </div>
         ))}

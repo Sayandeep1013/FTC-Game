@@ -6,6 +6,7 @@ import { DeckCoverArt } from "@/components/deck/DeckCoverArt";
 import { CardImageFrame } from "@/components/deck/CardImageFrame";
 import { RoomModal } from "@/components/room/RoomModal";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 import type { Card, Deck, StatDefinition, Universe } from "@/types";
 
 export function DeckDetailPageClient({ deck, universe }: { deck: Deck | null; universe: Universe | null }) {
@@ -129,7 +130,7 @@ function MiniCard({ card, stats }: { card: Card; stats: StatDefinition[] }) {
             }}
           >
             <span className="text-[9px] font-bold uppercase tracking-wider text-grey-dark">{stat.display_name}</span>
-            <span className="font-mono text-sm font-bold text-black leading-tight mt-0.5">{statValues.get(stat.id) ?? "-"}</span>
+            <span className="font-mono text-sm font-bold text-black leading-tight mt-0.5">{formatStatValue(statValues.get(stat.id), stat)}</span>
           </div>
         ))}
       </div>

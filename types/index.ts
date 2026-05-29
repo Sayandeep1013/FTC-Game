@@ -51,6 +51,8 @@ export interface StatDefinition {
   deck_id: string;
   name: string; // internal key, e.g. "strength"
   display_name: string; // shown in UI, e.g. "Strength"
+  unit_label: string; // shown after values, e.g. "kg" or "km/h"
+  value_format: "number" | "unit" | "height_ft_in";
   is_inverse: boolean; // true = lower value wins (like Rank)
   display_order: number;
 }

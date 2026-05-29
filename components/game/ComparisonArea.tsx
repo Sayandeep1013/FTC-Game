@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { CardInfo, RoundResult } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 
 interface ComparisonAreaProps {
   result: RoundResult;
@@ -70,7 +71,7 @@ export function ComparisonArea({ result, statDefs, playerNames, allCards, potCou
                 <div className="px-2 py-2 text-center">
                   <p className="text-[9px] text-grey-dark uppercase tracking-wider">{playerNames[c.player_id] ?? "?"}{isMe ? " (you)" : ""}</p>
                   {/* The called stat value — big */}
-                  <p className={`font-mono font-bold mt-1 ${isWinner ? "text-xl" : "text-base"}`}>{c.value}</p>
+                  <p className={`font-mono font-bold mt-1 ${isWinner ? "text-xl" : "text-base"}`}>{formatStatValue(c.value, calledStat ?? { unit_label: "", value_format: "number" })}</p>
                   {isWinner && (
                     <p className="text-[9px] font-bold uppercase tracking-wider mt-1">WIN ✓</p>
                   )}

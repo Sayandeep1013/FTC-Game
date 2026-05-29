@@ -4,6 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { PlayerHandInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 import { useRef } from "react";
 
 interface CardDisplayProps {
@@ -75,7 +76,7 @@ export function CardDisplay({ hand, statDefs, isActive, selectedStatId, onPickSt
           style={{ opacity: isLocked ? 0.3 : 1 }}
         >
           <span className="stat-label">{stat.display_name}</span>
-          <span className="stat-value font-mono">{val ?? "—"}</span>
+          <span className="stat-value font-mono">{formatStatValue(val, stat)}</span>
         </div>
       );
     });

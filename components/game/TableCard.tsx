@@ -5,6 +5,7 @@ import type { CardInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
 import { getDeckCoverUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 import { useEffect, useRef } from "react";
 
 interface TableCardProps {
@@ -213,7 +214,7 @@ function StatRow({ stat, value, isHighlighted, isLocked, canClick, onPick, showC
         className="font-mono font-bold flex-shrink-0 ml-1 flex items-center gap-0.5"
         style={{ fontSize: "clamp(0.6rem, 1.1vw, 0.72rem)" }}
       >
-        {value ?? "—"}{isHighlighted && showCheckmark && <span style={{ fontSize: "0.65em", opacity: 0.85 }}>✓</span>}
+        {formatStatValue(value, stat)}{isHighlighted && showCheckmark && <span style={{ fontSize: "0.65em", opacity: 0.85 }}>✓</span>}
       </span>
     </div>
   );

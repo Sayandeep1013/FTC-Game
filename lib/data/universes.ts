@@ -4,7 +4,7 @@ const FULL_SELECT = `
   id, name, slug, description, cover_image_url, is_active, display_order, created_at,
   decks (
     id, universe_id, name, slug, cover_image_url, is_active, display_order, created_at,
-    stat_definitions (id, deck_id, name, display_name, is_inverse, display_order),
+    stat_definitions (id, deck_id, name, display_name, unit_label, value_format, is_inverse, display_order),
     cards (
       id, deck_id, name, image_url, image_storage_path,
       card_stats (id, card_id, stat_definition_id, value)
@@ -48,7 +48,7 @@ export async function getPublicUniverses({ includeCards = false, slug }: { inclu
       .select(includeCards
         ? `
           id, name, slug, cover_image_url, is_active, created_at,
-          stat_definitions (id, deck_id, name, display_name, is_inverse, display_order),
+          stat_definitions (id, deck_id, name, display_name, unit_label, value_format, is_inverse, display_order),
           cards (
             id, deck_id, name, image_url, image_storage_path,
             card_stats (id, card_id, stat_definition_id, value)

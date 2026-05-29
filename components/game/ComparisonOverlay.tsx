@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import type { RoundResult, CardInfo } from "@/hooks/useGame";
 import type { StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 
 interface ComparisonOverlayProps {
   result: RoundResult;
@@ -99,7 +100,7 @@ export function ComparisonOverlay({
                   className={`font-mono font-bold leading-none mt-1 ${c.is_winner ? "text-white" : "text-grey-mid"}`}
                   style={{ fontSize: c.is_winner ? "clamp(1.2rem, 3vw, 1.8rem)" : "clamp(0.9rem, 2.2vw, 1.2rem)" }}
                 >
-                  {c.value}
+                  {formatStatValue(c.value, calledStat ?? { unit_label: "", value_format: "number" })}
                 </p>
                 {c.is_winner && (
                   <p className="text-[6px] font-bold uppercase tracking-wider text-white mt-1">WIN ✓</p>

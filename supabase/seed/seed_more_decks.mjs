@@ -24,14 +24,14 @@ const NEW_DECKS = [
 ];
 
 const STAT_DEFS = [
-  { name:"rank",     display_name:"Rank",     is_inverse:true,  display_order:1 },
-  { name:"strength", display_name:"Strength", is_inverse:false, display_order:2 },
-  { name:"stamina",  display_name:"Stamina",  is_inverse:false, display_order:3 },
-  { name:"height",   display_name:"Height",   is_inverse:false, display_order:4 },
-  { name:"weight",   display_name:"Weight",   is_inverse:false, display_order:5 },
-  { name:"psychic",  display_name:"Psychic",  is_inverse:false, display_order:6 },
-  { name:"iq",       display_name:"IQ",       is_inverse:false, display_order:7 },
-  { name:"speed",    display_name:"Speed",    is_inverse:false, display_order:8 },
+  { name:"rank",     display_name:"Rank",     unit_label:"",      value_format:"number",       is_inverse:true,  display_order:1 },
+  { name:"strength", display_name:"Strength", unit_label:"",      value_format:"number",       is_inverse:false, display_order:2 },
+  { name:"stamina",  display_name:"Stamina",  unit_label:"",      value_format:"number",       is_inverse:false, display_order:3 },
+  { name:"height",   display_name:"Height",   unit_label:"ft/in", value_format:"height_ft_in", is_inverse:false, display_order:4 },
+  { name:"weight",   display_name:"Weight",   unit_label:"kg",    value_format:"unit",         is_inverse:false, display_order:5 },
+  { name:"psychic",  display_name:"Psychic",  unit_label:"",      value_format:"number",       is_inverse:false, display_order:6 },
+  { name:"iq",       display_name:"IQ",       unit_label:"",      value_format:"number",       is_inverse:false, display_order:7 },
+  { name:"speed",    display_name:"Speed",    unit_label:"km/h",  value_format:"unit",         is_inverse:false, display_order:8 },
 ];
 
 const DC = ["Superman","Batman","Wonder Woman","The Flash","Green Lantern","Aquaman","Cyborg","Shazam","Martian Manhunter","Black Adam","Green Arrow","Nightwing","Batgirl","Supergirl","Hawkgirl","Zatanna","Doctor Fate","Atom","Firestorm","Red Tornado","Darkseid","Lex Luthor","Joker","Deathstroke","Brainiac","Sinestro","Doomsday","Reverse Flash","Gorilla Grodd","Black Manta","Captain Cold","Poison Ivy","Harley Quinn","Catwoman","Penguin","Bane","Ra's al Ghul","Trigon","Slade Wilson","Lobo","Swamp Thing","Constantine","Deadman","Phantom Stranger","Blue Beetle","Booster Gold","Plastic Man","Elongated Man","Captain Atom","Steel","Power Girl","Black Canary"].slice(0,52);
@@ -79,8 +79,8 @@ async function main() {
   for (const d of NEW_DECKS) {
     for (const def of STAT_DEFS) {
       await client.query(
-        `INSERT INTO stat_definitions (deck_id, name, display_name, is_inverse, display_order) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (deck_id, name) DO NOTHING`,
-        [d.id, def.name, def.display_name, def.is_inverse, def.display_order]
+        `INSERT INTO stat_definitions (deck_id, name, display_name, unit_label, value_format, is_inverse, display_order) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (deck_id, name) DO NOTHING`,
+        [d.id, def.name, def.display_name, def.unit_label, def.value_format, def.is_inverse, def.display_order]
       );
     }
   }

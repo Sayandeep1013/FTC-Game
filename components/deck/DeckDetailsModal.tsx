@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import type { Card, Deck, StatDefinition } from "@/types";
 import { getCardImageUrl } from "@/lib/utils/imageUrl";
+import { formatStatValue } from "@/lib/utils/statFormat";
 
 interface DeckDetailsModalProps {
   deck: Deck;
@@ -128,7 +129,7 @@ function MiniCard({ card, stats }: { card: Card; stats: StatDefinition[] }) {
               {stat.display_name}
             </span>
             <span className="font-mono text-sm font-bold text-black leading-tight mt-0.5">
-              {statValues[stat.name] ?? "—"}
+              {formatStatValue(statValues[stat.name], stat)}
             </span>
           </div>
         ))}
