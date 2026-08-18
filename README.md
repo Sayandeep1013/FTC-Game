@@ -6,17 +6,13 @@ Live site: [ftc-game.vercel.app](https://ftc-game.vercel.app)
 
 ## Screenshots
 
-### Home
+| Home | Universe browser |
+|---|---|
+| ![FTC home page](Screenshots/01-home.png) | ![Universe and deck browser](Screenshots/02-universes.png) |
 
-![FTC home page](Screenshots/HomePage%20Screenshot.png)
-
-### Universe Browser
-
-![FTC universe page](Screenshots/Universe%20Page.png)
-
-### Admin Content Manager
-
-![FTC admin page](Screenshots/Admin%20page.png)
+| Room lobby | Battle — stat pick |
+|---|---|
+| ![Room lobby with CPU opponents](Screenshots/03-lobby.png) | ![Battle screen, your turn to pick a stat](Screenshots/04-battle.png) |
 
 ## Features
 
